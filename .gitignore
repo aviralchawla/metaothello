@@ -1,0 +1,13 @@
+*/__pycache__
+*/.DS_Store
+*.pyc
+*.pyo
+__pycache__
+*.egg-info
+build
+data/*
+.DS_Store
+*.ckpt
+*.pickle
+*.out
+writing/**

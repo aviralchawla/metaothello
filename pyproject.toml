@@ -1,0 +1,149 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "metaothello"
+version = "0.1.0"
+description = "A controlled framework for studying multiple world models in transformers via Othello variants."
+readme = { file = "README.md", content-type = "text/markdown" }
+authors = [
+    { name = "Aviral Chawla", email = "aviral.chawla@uvm.edu" },
+    { name = "Galen Hall", email = "galenh@umich.edu" },
+]
+license = { file = "LICENSE" }
+requires-python = ">=3.12"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+keywords = [
+    "machine learning",
+    "mechanistic interpretability",
+    "transformers",
+    "toy models",
+    "othello",
+    "world models",
+    "probing",
+]
+
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "torch>=2.1",
+    "tqdm>=4.66",
+    "xarray>=2024.1",
+    "zarr>=2.16",
+    "jupyter>=1.0",
+    "matplotlib>=3.8",
+    "seaborn>=0.13",
+    "pandas>=2.1",
+    "scipy>=1.12",
+    "transformers>=4.36",
+    "transformer_lens>=1.14",
+]
+
+[project.optional-dependencies]
+
+# For development (linting, testing, type-checking)
+dev = [
+    "ruff>=0.8",
+    "pyright>=1.1.390",
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "pre-commit>=3.6",
+]
+
+[project.urls]
+Repository = "https://github.com/aviralchawla/metaothello"
+Paper = "https://arxiv.org/abs/XXXX.XXXXX"
+"Bug Tracker" = "https://github.com/aviralchawla/metaothello/issues"
+
+
+[tool.setuptools.packages.find]
+include = ["metaothello*"]
+
+#### RUFF #####
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+# Files/dirs to exclude from linting
+extend-exclude = [
+    "notebooks/",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort (import sorting)
+    "N",     # pep8-naming
+    "UP",    # pyupgrade (modernize syntax)
+    "B",     # flake8-bugbear (common bugs)
+    "SIM",   # flake8-simplify
+    "RUF",   # ruff-specific rules
+    "D",     # pydocstyle (docstrings)
+    "ANN",   # flake8-annotations (type hints)
+    "C4",    # flake8-comprehensions
+    "PT",    # flake8-pytest-style
+    "RET",   # flake8-return
+]
+ignore = [
+    "D100",   # Missing module docstring (too noisy early on)
+    "D104",   # Missing public package docstring
+    "D203",   # Conflicts with D211 (no-blank-line-before-class)
+    "D213",   # Conflicts with D212 (multi-line-summary-second-line)
+    "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["metaothello"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+docstring-code-format = true
+docstring-code-line-length = 80
+
+#### PYRIGHT #####
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+include = ["metaothello"]
+exclude = ["notebooks", "scripts/legacy", "**/__pycache__"]
+reportMissingImports = true
+reportMissingTypeStubs = false     # torch stubs are incomplete, avoid noise
+
+#### PYTEST #####
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "-ra",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "gpu: marks tests that require a GPU",
+]
+
+#### COVERAGE #####
+
+[tool.coverage.run]
+source = ["metaothello"]
+omit = ["*/tests/*", "*/notebooks/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
