@@ -10,6 +10,8 @@ from .rules.base import InitializeBoard, UpdateRule, ValidationRule
 class MetaOthello:
     """Abstract class implementation for Othello and its variants."""
 
+    alias: str = "base"
+
     def __init__(
         self,
         initialization_rule: type[InitializeBoard],
@@ -23,7 +25,8 @@ class MetaOthello:
         self.history = []
         self.board_history = []
         # Used to cache valid moves. NOT a history of all valid moves at each timestep.
-        self.valid_moves = []
+        # None = not yet computed
+        self.valid_moves: list[str | None] | None = None
 
         # rules
         self.initialization_rule = initialization_rule
@@ -47,8 +50,9 @@ class MetaOthello:
     def is_valid_move(self, move: str | None) -> bool:
         """Check if a move is valid based on the current board state."""
         if move is None:
-            return len(self.get_all_valid_moves()) == 1 and self.get_all_valid_moves()[0] is None
-        if self.valid_moves:
+            valid = self.get_all_valid_moves()
+            return len(valid) == 1 and valid[0] is None
+        if self.valid_moves is not None:
             return move in self.valid_moves
         x, y = move2tuple[move]
         valid = True
@@ -73,11 +77,11 @@ class MetaOthello:
         self.history.append(move)
         self.board_history.append(self.board.copy())
         self.next_color = -self.next_color
-        self.valid_moves = []  # Reset valid next moves
+        self.valid_moves = None  # Reset valid next moves
 
     def get_all_valid_moves(self) -> list[str | None]:
         """Returns all valid moves for the current player."""
-        if len(self.valid_moves) == 0:
+        if self.valid_moves is None:
             possible_moves = []
             for s in SQUARES:
                 if self.is_valid_move(s):
@@ -108,7 +112,7 @@ class MetaOthello:
             move = self.get_random_valid_move()
             self.play_move(move)
 
-            if self.history[-1] is None and self.history[-2] is None:
+            if len(self.history) >= 2 and self.history[-1] is None and self.history[-2] is None:
                 self.done = True
 
             steps += 1
@@ -179,7 +183,8 @@ class MetaOthello:
 
         # If shading is provided, add it to the board
         if shading is not None:
-            assert shading.shape == self.board.shape, "Shading must be the same shape as the board"
+            if shading.shape != self.board.shape:
+                raise ValueError("Shading must be the same shape as the board")
             if vmax is None:
                 vmax = np.max(shading)
 
@@ -187,13 +192,13 @@ class MetaOthello:
                 vmin = np.min(shading)
 
             norm = Normalize(vmin=vmin, vmax=vmax)
-            cmap = plt.get_cmap(cmap)
+            colormap = plt.get_cmap(cmap)
 
             for i in range(BOARD_DIM):
                 for j in range(BOARD_DIM):
                     if shading[i, j] != 0:
                         rect = plt.Rectangle(
-                            (j, i), 1, 1, fill=True, color=cmap(norm(shading[i, j])), alpha=0.7
+                            (j, i), 1, 1, fill=True, color=colormap(norm(shading[i, j])), alpha=0.7
                         )
                         ax.add_artist(rect)
 

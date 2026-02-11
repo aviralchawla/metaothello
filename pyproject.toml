@@ -42,7 +42,6 @@ dependencies = [
     "jupyter>=1.0",
     "matplotlib>=3.8",
     "seaborn>=0.13",
-    "pandas>=2.1",
     "scipy>=1.12",
     "transformers>=4.36",
     "transformer_lens>=1.14",

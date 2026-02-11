@@ -25,16 +25,16 @@ class StandardFlankingValidationRule(ValidationRule):
         """Check if the move flanks at least one opponent piece."""
         curr_color = mo.next_color
         curr_x, curr_y = x, y
-        for dir in DIRECTIONS:
-            x, y = curr_x + dir[0], curr_y + dir[1]
-            if not is_in_board(x, y) or mo.board[x, y] != -curr_color:
+        for direction in DIRECTIONS:
+            nx, ny = curr_x + direction[0], curr_y + direction[1]
+            if not is_in_board(nx, ny) or mo.board[nx, ny] != -curr_color:
                 continue
 
             while True:
-                x, y = x + dir[0], y + dir[1]
-                if not is_in_board(x, y) or mo.board[x, y] == EMPTY:
+                nx, ny = nx + direction[0], ny + direction[1]
+                if not is_in_board(nx, ny) or mo.board[nx, ny] == EMPTY:
                     break
-                if mo.board[x, y] == curr_color:
+                if mo.board[nx, ny] == curr_color:
                     return True
 
         return False
@@ -48,9 +48,9 @@ class NeighborValidationRule(ValidationRule):
         """Check if the move is adjacent to a piece of the same color."""
         curr_color = mo.next_color
         curr_x, curr_y = x, y
-        for dir in DIRECTIONS:
-            x, y = curr_x + dir[0], curr_y + dir[1]
-            if is_in_board(x, y) and mo.board[x, y] == curr_color:
+        for direction in DIRECTIONS:
+            nx, ny = curr_x + direction[0], curr_y + direction[1]
+            if is_in_board(nx, ny) and mo.board[nx, ny] == curr_color:
                 return True
 
         return False

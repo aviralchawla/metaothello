@@ -16,6 +16,8 @@ from .rules.validation import (
 class ClassicOthello(MetaOthello):
     """Classic Othello game with standard rules."""
 
+    alias = "classic"
+
     def __init__(self) -> None:
         """Initialize Classic Othello game."""
         super().__init__(
@@ -23,11 +25,12 @@ class ClassicOthello(MetaOthello):
             validation_rules=[AvailableRule, StandardFlankingValidationRule],
             update_rules=[StandardFlankingUpdateRule],
         )
-        self.alias = "classic"
 
 
 class NoMiddleFlip(MetaOthello):
     """Othello variant where only the endpoints of flanked sequences are flipped."""
+
+    alias = "nomidflip"
 
     def __init__(self) -> None:
         """Initialize NoMiddleFlip Othello game."""
@@ -36,11 +39,12 @@ class NoMiddleFlip(MetaOthello):
             validation_rules=[AvailableRule, StandardFlankingValidationRule],
             update_rules=[NoMiddleFlipUpdateRule],
         )
-        self.alias = "nomidflip"
 
 
 class DeleteFlanking(MetaOthello):
     """Othello variant where flanked pieces are deleted instead of flipped."""
+
+    alias = "delflank"
 
     def __init__(self) -> None:
         """Initialize DeleteFlanking Othello game."""
@@ -49,11 +53,12 @@ class DeleteFlanking(MetaOthello):
             validation_rules=[AvailableRule, NeighborValidationRule],
             update_rules=[DeleteFlankingUpdateRule],
         )
-        self.alias = "delflank"
 
 
 class Iago(MetaOthello):
     """Othello variant with shuffled move encoding."""
+
+    alias = "iago"
 
     def __init__(self) -> None:
         """Initialize Iago Othello game with shuffled move encoding."""
@@ -62,7 +67,6 @@ class Iago(MetaOthello):
             validation_rules=[AvailableRule, StandardFlankingValidationRule],
             update_rules=[StandardFlankingUpdateRule],
         )
-        self.alias = "iago"
         self.moves = [*SQUARES, None]
         self.shuffled_moves = self._shuffle_moves()
         self.mapping = dict(zip(self.moves, self.shuffled_moves, strict=True))

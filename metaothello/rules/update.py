@@ -14,20 +14,20 @@ class StandardFlankingUpdateRule(UpdateRule):
         curr_x, curr_y = x, y
         mo.board[curr_x, curr_y] = curr_color
 
-        for dir in DIRECTIONS:
-            x, y = curr_x + dir[0], curr_y + dir[1]
-            if not is_in_board(x, y) or mo.board[x, y] != -curr_color:
+        for direction in DIRECTIONS:
+            nx, ny = curr_x + direction[0], curr_y + direction[1]
+            if not is_in_board(nx, ny) or mo.board[nx, ny] != -curr_color:
                 continue
 
             while True:
-                x, y = x + dir[0], y + dir[1]
-                if not is_in_board(x, y) or mo.board[x, y] == EMPTY:
+                nx, ny = nx + direction[0], ny + direction[1]
+                if not is_in_board(nx, ny) or mo.board[nx, ny] == EMPTY:
                     break
-                if mo.board[x, y] == curr_color:
-                    x, y = curr_x + dir[0], curr_y + dir[1]
-                    while mo.board[x, y] == -curr_color:
-                        mo.board[x, y] = curr_color
-                        x, y = x + dir[0], y + dir[1]
+                if mo.board[nx, ny] == curr_color:
+                    nx, ny = curr_x + direction[0], curr_y + direction[1]
+                    while mo.board[nx, ny] == -curr_color:
+                        mo.board[nx, ny] = curr_color
+                        nx, ny = nx + direction[0], ny + direction[1]
                     break
 
 
@@ -41,20 +41,20 @@ class DeleteFlankingUpdateRule(UpdateRule):
         curr_x, curr_y = x, y
         mo.board[curr_x, curr_y] = curr_color
 
-        for dir in DIRECTIONS:
-            x, y = curr_x + dir[0], curr_y + dir[1]
-            if not is_in_board(x, y) or mo.board[x, y] != -curr_color:
+        for direction in DIRECTIONS:
+            nx, ny = curr_x + direction[0], curr_y + direction[1]
+            if not is_in_board(nx, ny) or mo.board[nx, ny] != -curr_color:
                 continue
 
             while True:
-                x, y = x + dir[0], y + dir[1]
-                if not is_in_board(x, y) or mo.board[x, y] == EMPTY:
+                nx, ny = nx + direction[0], ny + direction[1]
+                if not is_in_board(nx, ny) or mo.board[nx, ny] == EMPTY:
                     break
-                if mo.board[x, y] == curr_color:
-                    x, y = curr_x + dir[0], curr_y + dir[1]
-                    while mo.board[x, y] == -curr_color:
-                        mo.board[x, y] = EMPTY
-                        x, y = x + dir[0], y + dir[1]
+                if mo.board[nx, ny] == curr_color:
+                    nx, ny = curr_x + direction[0], curr_y + direction[1]
+                    while mo.board[nx, ny] == -curr_color:
+                        mo.board[nx, ny] = EMPTY
+                        nx, ny = nx + direction[0], ny + direction[1]
                     break
 
 
@@ -71,24 +71,24 @@ class NoMiddleFlipUpdateRule(UpdateRule):
         curr_x, curr_y = x, y
         mo.board[curr_x, curr_y] = curr_color
 
-        for dir in DIRECTIONS:
-            x, y = curr_x + dir[0], curr_y + dir[1]
-            if not is_in_board(x, y) or mo.board[x, y] != -curr_color:
+        for direction in DIRECTIONS:
+            nx, ny = curr_x + direction[0], curr_y + direction[1]
+            if not is_in_board(nx, ny) or mo.board[nx, ny] != -curr_color:
                 continue
 
-            flanked = [(x, y)]
+            flanked = [(nx, ny)]
             while True:
-                x, y = x + dir[0], y + dir[1]
-                if not is_in_board(x, y) or mo.board[x, y] == EMPTY:
+                nx, ny = nx + direction[0], ny + direction[1]
+                if not is_in_board(nx, ny) or mo.board[nx, ny] == EMPTY:
                     break
-                if mo.board[x, y] == curr_color:
+                if mo.board[nx, ny] == curr_color:
                     if len(flanked) > 1:
                         to_flip = [flanked[0], flanked[-1]]
-                        for x, y in to_flip:
-                            mo.board[x, y] = curr_color
+                        for fx, fy in to_flip:
+                            mo.board[fx, fy] = curr_color
                     elif len(flanked) == 1:
-                        x, y = flanked[0]
-                        mo.board[x, y] = curr_color
+                        fx, fy = flanked[0]
+                        mo.board[fx, fy] = curr_color
                     break
-                if mo.board[x, y] == -curr_color:
-                    flanked.append((x, y))
+                if mo.board[nx, ny] == -curr_color:
+                    flanked.append((nx, ny))
