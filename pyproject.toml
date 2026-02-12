@@ -45,6 +45,7 @@ dependencies = [
     "scipy>=1.12",
     "transformers>=4.36",
     "transformer_lens>=1.14",
+    "huggingface_hub>=0.20",
 ]
 
 [project.optional-dependencies]

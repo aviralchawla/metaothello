@@ -209,7 +209,7 @@ if __name__ == "__main__":
         "--split",
         type=str,
         default="train",
-        choices=["train", "val"],
+        choices=["train", "val", "board_train"],
         help="Dataset split to generate (default: train)",
     )
     parser.add_argument(
