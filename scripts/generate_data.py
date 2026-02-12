@@ -8,6 +8,7 @@ import os
 import queue
 import sys
 import time
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -26,6 +27,7 @@ GAME_REGISTRY = {cls.alias: cls for cls in [ClassicOthello, NoMiddleFlip, Delete
 NUM_CPU = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
 MAX_RETRIES = 1000
 tokenizer = Tokenizer()
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _gen_single_game(
@@ -202,7 +204,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--chunk_size",
         type=int,
-        default=10_000,
+        default=50_000,
         help="Number of games each worker generates before saving (default: 10000)",
     )
     parser.add_argument(
@@ -238,10 +240,19 @@ if __name__ == "__main__":
     logger.info("Split: %s", args.split)
     logger.info("Total games to generate: %d (%.2fM)", N, args.num_games)
 
-    save_path = f"../data/games/{args.game}/{args.split}/{args.game}_{int(args.num_games)}.zarr"
+    save_path = (
+        REPO_ROOT
+        / "data"
+        / "games"
+        / args.game
+        / args.split
+        / f"{args.game}_{int(args.num_games)}.zarr"
+    )
 
     try:
-        generate_with_parallel_workers(N, GameClass, args.num_workers, args.chunk_size, save_path)
+        generate_with_parallel_workers(
+            N, GameClass, args.num_workers, args.chunk_size, str(save_path)
+        )
     except Exception:
         logger.exception("Data generation failed.")
         sys.exit(1)
