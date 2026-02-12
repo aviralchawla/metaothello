@@ -11,3 +11,4 @@ data/*
 *.pickle
 *.out
 writing/**
+pyrightconfig.json
