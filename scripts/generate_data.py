@@ -226,7 +226,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--save_board",
-        tyep=bool,
+        type=bool,
         default=False,
         help="If enabled, the script also saves board state history to the dataset",
     )
