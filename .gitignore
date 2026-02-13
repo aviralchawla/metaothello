@@ -1,4 +1,5 @@
 */__pycache__
+slurm_*
 */.DS_Store
 *.pyc
 *.pyo
