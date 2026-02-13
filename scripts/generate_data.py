@@ -46,17 +46,19 @@ def _gen_single_game(
     )
 
 
-def _gen_single_game_dataset(game_class: type[MetaOthello]) -> xr.Dataset:
+def _gen_single_game_dataset(game_class: type[MetaOthello], save_board: bool) -> xr.Dataset:
     """Generate a single game and return as xarray Dataset."""
     np.random.seed(None)
     history, board_history = _gen_single_game(game_class)
-    tokenized_history = tokenizer.encode(history)
-    return xr.Dataset(
-        data_vars={
-            "tokenized_history": (["move"], np.array(tokenized_history, dtype=np.int32)),
-            "board_state": (["move", "x", "y"], np.array(board_history)),
-        }
-    )
+    seqs = tokenizer.encode(history)
+    if save_board:
+        return xr.Dataset(
+            data_vars={
+                "seqs": (["move"], np.array(seqs, dtype=np.int32)),
+                "board_state": (["move", "x", "y"], np.array(board_history)),
+            }
+        )
+    return xr.Dataset(data_vars={"seqs": (["move"], np.array(seqs, dtype=np.int32))})
 
 
 def _worker_process(
@@ -64,6 +66,7 @@ def _worker_process(
     game_class: type[MetaOthello],
     task_queue: multiprocessing.Queue[tuple[int, int]],
     save_path: str,
+    save_board: bool,
     lock: multiprocessing.synchronize.Lock,
     file_initialized: Any,
     progress_counter: Any,
@@ -86,7 +89,7 @@ def _worker_process(
         # Generate games for this chunk
         results = []
         for _ in range(num_games):
-            results.append(_gen_single_game_dataset(game_class))
+            results.append(_gen_single_game_dataset(game_class, save_board))
 
         # Concatenate and save
         ds_chunk = xr.concat(results, dim="game")
@@ -110,6 +113,7 @@ def generate_with_parallel_workers(
     num_workers: int,
     chunk_size: int,
     save_path: str,
+    save_board: bool,
 ) -> None:
     """Generate data using parallel workers with a single global progress bar.
 
@@ -119,6 +123,7 @@ def generate_with_parallel_workers(
         num_workers: Number of parallel worker processes.
         chunk_size: Max number of games each worker generates before saving.
         save_path: Path to save the Zarr dataset.
+        save_board: Flag to save or not save the board state history.
     """
     logger.info("Starting generation: %d games with %d workers.", n, num_workers)
     logger.info("Chunk size: %d games per save operation.", chunk_size)
@@ -152,7 +157,16 @@ def generate_with_parallel_workers(
     for i in range(num_workers):
         p = multiprocessing.Process(
             target=_worker_process,
-            args=(i, game_class, task_queue, save_path, lock, file_initialized, progress_counter),
+            args=(
+                i,
+                game_class,
+                task_queue,
+                save_path,
+                save_board,
+                lock,
+                file_initialized,
+                progress_counter,
+            ),
         )
         p.start()
         processes.append(p)
@@ -211,6 +225,12 @@ if __name__ == "__main__":
         help="Dataset split to generate (default: train)",
     )
     parser.add_argument(
+        "--save_board",
+        tyep=bool,
+        default=False,
+        help="If enabled, the script also saves board state history to the dataset",
+    )
+    parser.add_argument(
         "-v",
         "--verbose",
         action="store_true",
@@ -247,7 +267,7 @@ if __name__ == "__main__":
 
     try:
         generate_with_parallel_workers(
-            N, GameClass, args.num_workers, args.chunk_size, str(save_path)
+            N, GameClass, args.num_workers, args.chunk_size, str(save_path), args.save_board
         )
     except Exception:
         logger.exception("Data generation failed.")
