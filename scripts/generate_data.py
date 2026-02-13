@@ -60,64 +60,48 @@ def _gen_single_game_dataset(game_class: type[MetaOthello]) -> xr.Dataset:
 
 
 def _worker_process(
-    worker_id: int,
+    _worker_id: int,
     game_class: type[MetaOthello],
     task_queue: multiprocessing.Queue[tuple[int, int]],
     save_path: str,
     lock: multiprocessing.synchronize.Lock,
     file_initialized: Any,
-    position: int,
+    progress_counter: Any,
 ) -> None:
     """Worker process that generates chunks of games and saves them to Zarr.
 
     Each worker:
     1. Gets a chunk assignment from the task queue
-    2. Generates chunk_size games with its own progress bar
+    2. Generates chunk_size games
     3. Saves the chunk to Zarr (thread-safe via lock)
-    4. Repeats until task_queue is empty
+    4. Reports completed games to the main process via progress_counter
+    5. Repeats until task_queue is empty
     """
-    pbar = tqdm(
-        total=0,  # Will be updated dynamically
-        desc=f"Worker {worker_id}",
-        position=position,
-        leave=True,
-    )
-
-    total_generated = 0
-
     while True:
         try:
-            chunk_id, num_games = task_queue.get_nowait()
+            _, num_games = task_queue.get_nowait()
         except queue.Empty:
-            # No more work
             break
-
-        # Update progress bar for this chunk
-        pbar.reset(total=num_games)
-        pbar.set_description(f"Worker {worker_id} [Chunk {chunk_id}]")
 
         # Generate games for this chunk
         results = []
         for _ in range(num_games):
             results.append(_gen_single_game_dataset(game_class))
-            pbar.update(1)
 
         # Concatenate and save
         ds_chunk = xr.concat(results, dim="game")
 
         # Thread-safe file write
         with lock:
-            # Check if this is the first write ever
             if not file_initialized.value:
                 ds_chunk.to_zarr(save_path, zarr_format=2, mode="w")
                 file_initialized.value = True
             else:
                 ds_chunk.to_zarr(save_path, mode="a", append_dim="game")
 
-        total_generated += num_games
-
-    pbar.set_description(f"Worker {worker_id} [Done: {total_generated} games]")
-    pbar.close()
+        # Report completed games to main process (atomic increment)
+        with progress_counter.get_lock():
+            progress_counter.value += num_games
 
 
 def generate_with_parallel_workers(
@@ -127,7 +111,7 @@ def generate_with_parallel_workers(
     chunk_size: int,
     save_path: str,
 ) -> None:
-    """Generate data using parallel workers, each with its own progress bar.
+    """Generate data using parallel workers with a single global progress bar.
 
     Args:
         n: Total number of games to generate.
@@ -156,9 +140,10 @@ def generate_with_parallel_workers(
 
     logger.info("Created %d chunks to process.", chunk_id)
 
-    # Create a lock for thread-safe Zarr writes and a flag to track file initialization
+    # Shared state: lock for Zarr writes, initialization flag, and global game counter
     lock = multiprocessing.Lock()
-    file_initialized = multiprocessing.Value("b", False)  # Shared boolean flag
+    file_initialized = multiprocessing.Value("b", False)
+    progress_counter = multiprocessing.Value("i", 0)
 
     overall_start = time.time()
 
@@ -167,12 +152,23 @@ def generate_with_parallel_workers(
     for i in range(num_workers):
         p = multiprocessing.Process(
             target=_worker_process,
-            args=(i, game_class, task_queue, save_path, lock, file_initialized, i),
+            args=(i, game_class, task_queue, save_path, lock, file_initialized, progress_counter),
         )
         p.start()
         processes.append(p)
 
-    # Wait for all workers to complete
+    # Single progress bar driven by polling the shared counter
+    with tqdm(total=n, desc=f"Generating {game_class.alias}", unit="game") as pbar:
+        reported = 0
+        while any(p.is_alive() for p in processes):
+            current = progress_counter.value
+            if current > reported:
+                pbar.update(current - reported)
+                reported = current
+            time.sleep(0.5)
+        # Drain any remaining count after all processes finish
+        pbar.update(progress_counter.value - reported)
+
     for p in processes:
         p.join()
 
