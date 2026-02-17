@@ -72,10 +72,10 @@ download-data-split: ## Download one game/split pair  [GAME=classic SPLIT=train]
 	python scripts/download.py data --game $(GAME) --split $(SPLIT)
 
 # ---------- Generate Data ----------
-generate-data-game: ## Generate game data locally  [GAME=classic N_GAMES=1 SPLIT=train]
+generate-data: ## Generate game data locally  [GAME=classic N_GAMES=1 SPLIT=train]
 	python scripts/generate_data.py --game $(GAME) --num_games $(N_GAMES) --split $(SPLIT)
 
-generate-data-train: ## Generate 20M training games for each game variant
+generate-data-all-train: ## Generate 20M training games for each game variant
 	for game in classic nomidflip delflank iago; do \
 		python scripts/generate_data.py --game $$game --num_games 20 --split train; \
 	done
