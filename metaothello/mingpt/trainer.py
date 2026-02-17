@@ -148,8 +148,7 @@ class Trainer:
                 test_loss = run_epoch('test')
 
             # save every epoch
-            if epoch + 1 in [1, 5, 50, 150, 250]:
-                self.save_checkpoint(epoch)
+            self.save_checkpoint(epoch)
             self.save_loss()
 
             self.loss_it_train = []
