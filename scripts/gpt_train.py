@@ -23,7 +23,6 @@ logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DATA = REPO_ROOT / "data"
-CONFIGS = Path(__file__).resolve().parent / "configs"
 
 
 def get_dataset(data_path: Path) -> xr.DataArray:
@@ -69,7 +68,7 @@ def load_data(
 
     Args:
         config: Training configuration dict with a 'data' list, each entry
-            containing a 'path' key relative to the DATA directory.
+            containing a 'path' key relative to the repository root.
         test_frac: Fraction of each dataset to reserve for the test split.
 
     Returns:
@@ -77,13 +76,13 @@ def load_data(
         (n_games, MAX_STEPS).
     """
     if len(config["data"]) == 1:
-        ds = get_dataset(DATA / config["data"][0]["path"])
+        ds = get_dataset(REPO_ROOT / config["data"][0]["path"])
         return split_train_test(ds, test_frac=test_frac)
 
     train = []
     test = []
     for dataset in config["data"]:
-        ds = get_dataset(DATA / dataset["path"])
+        ds = get_dataset(REPO_ROOT / dataset["path"])
         train_ds, test_ds = split_train_test(ds, test_frac=test_frac)
         train.append(train_ds)
         test.append(test_ds)
@@ -93,7 +92,12 @@ def load_data(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train a GPT model on Othello game sequences.")
-    parser.add_argument("--config", type=str, required=True, help="Config file for training")
+    parser.add_argument(
+        "--run_name",
+        type=str,
+        required=True,
+        help="Training run name matching a directory under data/ (e.g., classic)",
+    )
     parser.add_argument(
         "-v",
         "--verbose",
@@ -110,7 +114,7 @@ if __name__ == "__main__":
     set_seed(42)
 
     # Load config
-    with open(CONFIGS / args.config) as f:
+    with open(DATA / args.run_name / "train_config.json") as f:
         config = json.load(f)
     logger.info("Training with config: %s", config)
 

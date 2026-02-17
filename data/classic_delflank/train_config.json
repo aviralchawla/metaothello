@@ -1,0 +1,21 @@
+{
+    "run_name": "classic_delflank",
+    "data": [
+        {
+            "game": "classic",
+            "num_games": 20,
+            "path": "data/classic/train_classic_20M.zarr"
+        },
+        {
+            "game": "delflank",
+            "num_games": 20,
+            "path": "data/delflank/train_delflank_20M.zarr"
+        }
+    ],
+    "training": {
+        "max_epochs": 250,
+        "batch_size": 4096,
+        "learning_rate": 0.0005,
+        "lr_decay": true
+    }
+}

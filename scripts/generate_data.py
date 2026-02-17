@@ -46,7 +46,7 @@ def _gen_single_game(
     )
 
 
-def _gen_single_game_dataset(game_class: type[MetaOthello], save_board: bool) -> xr.Dataset:
+def _gen_single_game_dataset(game_class: type[MetaOthello], save_board: bool = True) -> xr.Dataset:
     """Generate a single game and return as xarray Dataset."""
     np.random.seed(None)
     history, board_history = _gen_single_game(game_class)
@@ -113,7 +113,7 @@ def generate_with_parallel_workers(
     num_workers: int,
     chunk_size: int,
     save_path: str,
-    save_board: bool,
+    save_board: bool = True,
 ) -> None:
     """Generate data using parallel workers with a single global progress bar.
 
@@ -257,12 +257,7 @@ if __name__ == "__main__":
     logger.info("Total games to generate: %d (%.2fM)", N, args.num_games)
 
     save_path = (
-        REPO_ROOT
-        / "data"
-        / "games"
-        / args.game
-        / args.split
-        / f"{args.game}_{int(args.num_games)}.zarr"
+        REPO_ROOT / "data" / args.game / f"{args.split}_{args.game}_{int(args.num_games)}M.zarr"
     )
 
     try:

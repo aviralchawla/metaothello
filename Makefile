@@ -1,4 +1,4 @@
-.PHONY: help install install-dev lint format format-check typecheck check fix test test-fast test-cov clean download-all download-models download-model download-data download-data-game download-data-split generate-data-game generate-data-train
+.PHONY: help install install-dev lint format format-check typecheck check fix test test-fast test-cov clean download-all download-models download-model download-data download-data-game download-data-split generate-data-game generate-data-train train
 
 help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -79,6 +79,12 @@ generate-data-train: ## Generate 20M training games for each game variant
 	for game in classic nomidflip delflank iago; do \
 		python scripts/generate_data.py --game $$game --num_games 20 --split train; \
 	done
+
+# ---------- Train ----------
+RUN_NAME ?= classic
+
+train: ## Train a GPT model  [RUN_NAME=classic]
+	python scripts/gpt_train.py --run_name $(RUN_NAME)
 
 # ---------- Cleanup ----------
 

@@ -7,6 +7,10 @@ __pycache__
 *.egg-info
 build
 data/*
+!data/*/
+!data/*/train_config.json
+data/**/*.zarr
+data/ckpts/
 .DS_Store
 *.ckpt
 *.pickle
