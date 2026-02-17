@@ -76,6 +76,8 @@ line-length = 100
 # Files/dirs to exclude from linting
 extend-exclude = [
     "notebooks/",
+    "metaothello/mingpt/model.py",
+    "metaothello/mingpt/trainer.py",
 ]
 
 [tool.ruff.lint]
@@ -119,7 +121,7 @@ docstring-code-line-length = 80
 pythonVersion = "3.12"
 typeCheckingMode = "basic"
 include = ["metaothello"]
-exclude = ["notebooks", "scripts/legacy", "**/__pycache__"]
+exclude = ["notebooks", "scripts/legacy", "**/__pycache__", "metaothello/mingpt/model.py", "metaothello/mingpt/trainer.py"]
 reportMissingImports = true
 reportMissingTypeStubs = false     # torch stubs are incomplete, avoid noise
 
