@@ -16,13 +16,12 @@ import xarray as xr
 from tqdm import tqdm
 
 from metaothello.constants import MAX_STEPS
-from metaothello.games import ClassicOthello, DeleteFlanking, Iago, NoMiddleFlip
+from metaothello.games import GAME_REGISTRY
 from metaothello.metaothello import MetaOthello
 from metaothello.mingpt.tokenizer import Tokenizer
 
 logger = logging.getLogger(__name__)
 
-GAME_REGISTRY = {cls.alias: cls for cls in [ClassicOthello, NoMiddleFlip, DeleteFlanking, Iago]}
 # Use all available CPUs for the pool (useful when running on HPC)
 NUM_CPU = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
 MAX_RETRIES = 1000

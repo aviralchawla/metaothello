@@ -7,6 +7,7 @@ from typing import Any
 import einops
 import numpy as np
 import torch
+import xarray as xr
 from transformer_lens import HookedTransformer, HookedTransformerConfig
 
 from .model import GPT, GPTConfig
@@ -206,3 +207,38 @@ def split_train_test(data: Any, test_frac: float = 0.1) -> tuple[Any, Any]:
     if hasattr(data, "isel"):
         return data.isel(game=train_idx), data.isel(game=test_idx)
     return data[train_idx], data[test_idx]
+
+
+def get_dataset(data_path: Path) -> np.ndarray:
+    """Open a Zarr game dataset and return the pre-tokenised sequence array.
+
+    Args:
+        data_path: Path to the .zarr store produced by generate_data.py.
+
+    Returns:
+        Numpy array of shape (num_games, MAX_STEPS) with dtype int32.
+    """
+    ds = xr.open_zarr(data_path)
+    return ds["seqs"].values
+
+
+def get_last_ckpt(ckpt_dir: Path) -> tuple[Path | None, int]:
+    """Return the most recent checkpoint file and its epoch number.
+
+    Args:
+        ckpt_dir: Directory containing .ckpt files named epoch_{n}.ckpt.
+
+    Returns:
+        Tuple of (checkpoint_path, epoch_number). Returns (None, 0) if the
+        directory does not exist or contains no checkpoints.
+    """
+    if not ckpt_dir.exists():
+        ckpt_dir.mkdir(parents=True)
+        return None, 0
+    ckpts = list(ckpt_dir.glob("*.ckpt"))
+    if not ckpts:
+        return None, 0
+    ckpts = sorted(ckpts, key=lambda x: int(x.stem.split("_")[-1]))
+    last_ckpt = ckpts[-1]
+    last_epoch = int(last_ckpt.stem.split("_")[-1])
+    return last_ckpt, last_epoch

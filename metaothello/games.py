@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from .constants import SQUARES
 from .metaothello import MetaOthello
 from .rules.initialization import ClassicInitialization, OpenSpreadInitialization
@@ -88,3 +90,8 @@ class Iago(MetaOthello):
         """Recover the board state from a given history of moves."""
         for move in history:
             self.play_move(self.reverse_mapping[move])
+
+
+GAME_REGISTRY: dict[str, type[MetaOthello]] = {
+    cls.alias: cls for cls in [ClassicOthello, NoMiddleFlip, DeleteFlanking, Iago]
+}

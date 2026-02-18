@@ -7,12 +7,13 @@ import sys
 from pathlib import Path
 
 import numpy as np
-import xarray as xr
 
 from metaothello.mingpt.dataset import SequenceDataset
 from metaothello.mingpt.tokenizer import Tokenizer
 from metaothello.mingpt.trainer import Trainer, TrainerConfig
 from metaothello.mingpt.utils import (
+    get_dataset,
+    get_last_ckpt,
     load_fresh_model,
     load_model_from_ckpt,
     set_seed,
@@ -24,41 +25,6 @@ logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DATA = REPO_ROOT / "data"
-
-
-def get_dataset(data_path: Path) -> np.ndarray:
-    """Open a Zarr game dataset and return the pre-tokenised sequence array.
-
-    Args:
-        data_path: Path to the .zarr store produced by generate_data.py.
-
-    Returns:
-        Numpy array of shape (num_games, MAX_STEPS) with dtype int32.
-    """
-    ds = xr.open_zarr(data_path)
-    return ds["seqs"].values
-
-
-def get_last_ckpt(ckpt_dir: Path) -> tuple[Path | None, int]:
-    """Return the most recent checkpoint file and its epoch number.
-
-    Args:
-        ckpt_dir: Directory containing .ckpt files named epoch_{n}.ckpt.
-
-    Returns:
-        Tuple of (checkpoint_path, epoch_number). Returns (None, 0) if the
-        directory does not exist or contains no checkpoints.
-    """
-    if not ckpt_dir.exists():
-        ckpt_dir.mkdir(parents=True)
-        return None, 0
-    ckpts = list(ckpt_dir.glob("*.ckpt"))
-    if not ckpts:
-        return None, 0
-    ckpts = sorted(ckpts, key=lambda x: int(x.stem.split("_")[-1]))
-    last_ckpt = ckpts[-1]
-    last_epoch = int(last_ckpt.stem.split("_")[-1])
-    return last_ckpt, last_epoch
 
 
 def load_data(
