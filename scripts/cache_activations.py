@@ -205,9 +205,8 @@ def create_activation_arrays(
     ``{model_name}_epoch{epoch}_resid_post``, so activations from different
     checkpoints within the same run coexist without collision.
 
-    Arrays are chunked with ``batch_size`` games per chunk along the first
-    dimension so that each writer-thread write corresponds to exactly one
-    Zarr chunk, avoiding partial-chunk I/O overhead.
+    Arrays are chunked along the first dimension (up to ``batch_size`` rows),
+    capped so that no single chunk exceeds the 2 GiB blosc compressor limit.
 
     Args:
         grp: Open Zarr group backed by the game data store.
@@ -239,13 +238,20 @@ def create_activation_arrays(
                 f"Array '{resid_name}' already exists. Pass --force to overwrite."
             )
 
+    # Blosc (the default Zarr compressor) has a hard 2 GiB buffer limit.
+    # Cap the chunk's first dimension so no single chunk exceeds that limit.
+    # The largest array per row is resid_post: MAX_STEPS * d_model * n_layers * 4 bytes.
+    max_blosc_bytes = 2**31 - 1  # 2 GiB - 1
+    bytes_per_row = MAX_STEPS * d_model * n_layers * 4  # float32 = 4 bytes
+    chunk_rows = min(batch_size, max_blosc_bytes // bytes_per_row)
+
     logits_arr = grp.require_array(
         logits_name,
         shape=(num_seqs, MAX_STEPS, d_vocab),
         dtype="float32",
         fill_value=np.nan,
         overwrite=overwrite,
-        chunks=(batch_size, MAX_STEPS, d_vocab),
+        chunks=(chunk_rows, MAX_STEPS, d_vocab),
     )
     logits_arr.attrs["_ARRAY_DIMENSIONS"] = ["game", "move", "vocab"]
 
@@ -255,7 +261,7 @@ def create_activation_arrays(
         dtype="float32",
         fill_value=np.nan,
         overwrite=overwrite,
-        chunks=(batch_size, MAX_STEPS, d_model, n_layers),
+        chunks=(chunk_rows, MAX_STEPS, d_model, n_layers),
     )
     residpost_arr.attrs["_ARRAY_DIMENSIONS"] = ["game", "move", "d_model", "layer"]
 
