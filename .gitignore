@@ -10,7 +10,7 @@ data/*
 !data/*/
 !data/*/train_config.json
 data/**/*.zarr
-data/ckpts/
+data/*/ckpts/
 .DS_Store
 *.ckpt
 *.pickle
