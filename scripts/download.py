@@ -8,7 +8,7 @@ Assets are hosted across two HuggingFace repositories:
 
 - **Model repo** (``aviralchawla/metaothello``): Checkpoints organised by
   run name (e.g. ``classic/epoch_250.ckpt``).  Downloaded into
-  ``data/ckpts/<run_name>/`` locally.
+  ``data/<run_name>/ckpts/`` locally.
 
 Usage (via Makefile -- preferred)::
 
@@ -110,7 +110,7 @@ def download_models(run_name: str | None = None) -> None:
 
     The model repo stores checkpoints as
     ``<run_name>/epoch_<N>.ckpt``.  This function downloads them into
-    ``data/ckpts/<run_name>/`` to match the local layout used by
+    ``data/<run_name>/ckpts/`` to match the local layout used by
     ``gpt_train.py``.
 
     Args:
@@ -131,13 +131,13 @@ def download_models(run_name: str | None = None) -> None:
                 local_dir=tmp,
             )
 
-            # Move ckpts from <tmp>/<run>/ into data/ckpts/<run>/
+            # Move ckpts from <tmp>/<run>/ into data/<run>/ckpts/
             src_dir = Path(tmp) / run
             if not src_dir.exists():
                 logger.warning("  No checkpoints found for '%s' on HuggingFace.", run)
                 continue
 
-            dest_dir = DATA_DIR / "ckpts" / run
+            dest_dir = DATA_DIR / run / "ckpts"
             dest_dir.mkdir(parents=True, exist_ok=True)
             for ckpt in sorted(src_dir.glob("*.ckpt")):
                 dest = dest_dir / ckpt.name
