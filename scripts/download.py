@@ -1,30 +1,36 @@
 """Download pretrained models and pregenerated datasets from HuggingFace Hub.
 
-HuggingFace repo: aviralchawla/metaothello
-Files are saved locally preserving the repo's directory structure, so the
-paths you use on HF directly determine where they land locally. Adjust the
-pattern-builder functions below (_model_patterns, _data_patterns) to match
-your actual repo layout.
+Assets are hosted across two HuggingFace repositories:
 
-Usage (via Makefile — preferred):
+- **Dataset repo** (``datasets/aviralchawla/metaothello``): Zarr training data
+  stored flat at the repo root (e.g. ``train_classic_20M.zarr/``).  Downloaded
+  into ``data/<game>/`` locally.
+
+- **Model repo** (``aviralchawla/metaothello``): Checkpoints organised by
+  run name (e.g. ``classic/epoch_250.ckpt``).  Downloaded into
+  ``data/ckpts/<run_name>/`` locally.
+
+Usage (via Makefile -- preferred)::
+
     make download-all
     make download-models
-    make download-model  GAME=classic
+    make download-model  RUN_NAME=classic
     make download-data
-    make download-data-game  GAME=classic
-    make download-data-split GAME=classic SPLIT=train
+    make download-data-game GAME=classic
 
-Usage (direct):
+Usage (direct)::
+
     python scripts/download.py all
-    python scripts/download.py models [--game GAME]
-    python scripts/download.py data   [--game GAME] [--split SPLIT]
+    python scripts/download.py models [--run_name RUN_NAME]
+    python scripts/download.py data   [--game GAME]
 """
 
 from __future__ import annotations
 
 import argparse
 import logging
-import sys
+import shutil
+import tempfile
 from pathlib import Path
 
 from huggingface_hub import snapshot_download
@@ -36,58 +42,112 @@ logger = logging.getLogger(__name__)
 # Configuration
 # ---------------------------------------------------------------------------
 
-HF_REPO = "aviralchawla/metaothello"
-HF_REPO_TYPE = "model"  # Change to "dataset" if the HF repo is a dataset repo
+HF_DATA_REPO = "aviralchawla/metaothello"
+HF_MODEL_REPO = "aviralchawla/metaothello"
 
 GAMES = ["classic", "nomidflip", "delflank", "iago"]
-SPLITS = ["train", "val"]
+RUN_NAMES = [
+    "classic",
+    "nomidflip",
+    "delflank",
+    "iago",
+    "classic_nomidflip",
+    "classic_delflank",
+    "classic_iago",
+]
 
-# Local root directories (relative to repo root, i.e. where you run make from)
-DATA_DIR = Path("data/games")
-MODELS_DIR = Path("models")
-
-
-# ---------------------------------------------------------------------------
-# Path pattern builders — EDIT THESE to match your HF repo layout.
-#
-# snapshot_download preserves repo structure under local_dir, so if your
-# repo has  models/classic/run1.ckpt  and local_dir=MODELS_DIR, it lands at
-# models/classic/run1.ckpt locally.
-# ---------------------------------------------------------------------------
-
-
-def _model_patterns(game: str | None) -> list[str]:
-    """Glob patterns selecting .ckpt files, optionally scoped to one game."""
-    if game is not None:
-        return [f"models/{game}/*.ckpt"]  # TODO: adjust to your repo layout
-    return ["models/**/*.ckpt"]
-
-
-def _data_patterns(game: str | None, split: str | None) -> list[str]:
-    """Glob patterns selecting Zarr data files, optionally scoped."""
-    if game is not None and split is not None:
-        return [f"data/{game}/{split}/**"]  # TODO: adjust to your repo layout
-    if game is not None:
-        return [f"data/{game}/**"]
-    return ["data/**"]
+REPO_ROOT = Path(__file__).resolve().parent.parent
+DATA_DIR = REPO_ROOT / "data"
 
 
 # ---------------------------------------------------------------------------
-# Download helper
+# Download helpers
 # ---------------------------------------------------------------------------
 
 
-def _download(allow_patterns: list[str], local_dir: Path, label: str) -> None:
-    """Run snapshot_download for the given patterns and log progress."""
-    logger.info("Downloading %s → %s", label, local_dir)
-    local_dir.mkdir(parents=True, exist_ok=True)
-    snapshot_download(
-        repo_id=HF_REPO,
-        repo_type=HF_REPO_TYPE,
-        allow_patterns=allow_patterns,
-        local_dir=str(local_dir),
-    )
-    logger.info("Done: %s", label)
+def download_data(game: str | None = None) -> None:
+    """Download Zarr training data from the HF dataset repo.
+
+    The dataset repo stores zarr directories flat at the root
+    (e.g. ``train_classic_20M.zarr/``).  This function downloads them
+    into ``data/<game>/`` to match the local layout expected by
+    ``gpt_train.py``.
+
+    Args:
+        game: Restrict to a single game variant.  Downloads all four
+            single-game datasets when *None*.
+    """
+    games = [game] if game else GAMES
+
+    for g in games:
+        pattern = f"train_{g}_*M.zarr/**"
+        logger.info("Downloading data for '%s' ...", g)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            snapshot_download(
+                repo_id=HF_DATA_REPO,
+                repo_type="dataset",
+                allow_patterns=[pattern],
+                local_dir=tmp,
+            )
+
+            # Move each zarr directory into data/<game>/
+            tmp_path = Path(tmp)
+            for zarr_dir in sorted(tmp_path.glob(f"train_{g}_*M.zarr")):
+                dest = DATA_DIR / g / zarr_dir.name
+                if dest.exists():
+                    logger.info("  Skipping %s (already exists)", dest.relative_to(REPO_ROOT))
+                    continue
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(zarr_dir), str(dest))
+                logger.info("  Saved %s", dest.relative_to(REPO_ROOT))
+
+    logger.info("Done: data download.")
+
+
+def download_models(run_name: str | None = None) -> None:
+    """Download model checkpoints from the HF model repo.
+
+    The model repo stores checkpoints as
+    ``<run_name>/epoch_<N>.ckpt``.  This function downloads them into
+    ``data/ckpts/<run_name>/`` to match the local layout used by
+    ``gpt_train.py``.
+
+    Args:
+        run_name: Restrict to a single run.  Downloads all seven runs
+            when *None*.
+    """
+    runs = [run_name] if run_name else RUN_NAMES
+
+    for run in runs:
+        pattern = f"{run}/epoch_*.ckpt"
+        logger.info("Downloading model checkpoints for '%s' ...", run)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            snapshot_download(
+                repo_id=HF_MODEL_REPO,
+                repo_type="model",
+                allow_patterns=[pattern],
+                local_dir=tmp,
+            )
+
+            # Move ckpts from <tmp>/<run>/ into data/ckpts/<run>/
+            src_dir = Path(tmp) / run
+            if not src_dir.exists():
+                logger.warning("  No checkpoints found for '%s' on HuggingFace.", run)
+                continue
+
+            dest_dir = DATA_DIR / "ckpts" / run
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            for ckpt in sorted(src_dir.glob("*.ckpt")):
+                dest = dest_dir / ckpt.name
+                if dest.exists():
+                    logger.info("  Skipping %s (already exists)", dest.relative_to(REPO_ROOT))
+                    continue
+                shutil.move(str(ckpt), str(dest))
+                logger.info("  Saved %s", dest.relative_to(REPO_ROOT))
+
+    logger.info("Done: model download.")
 
 
 # ---------------------------------------------------------------------------
@@ -97,29 +157,18 @@ def _download(allow_patterns: list[str], local_dir: Path, label: str) -> None:
 
 def cmd_all(_args: argparse.Namespace) -> None:
     """Download all models and all data."""
-    _download(_model_patterns(None), MODELS_DIR, "all models")
-    _download(_data_patterns(None, None), DATA_DIR, "all data")
+    download_data()
+    download_models()
 
 
 def cmd_models(args: argparse.Namespace) -> None:
-    """Download models, optionally filtered to a single game."""
-    game: str | None = args.game
-    label = f"model [{game}]" if game else "all models"
-    _download(_model_patterns(game), MODELS_DIR, label)
+    """Download model checkpoints."""
+    download_models(run_name=args.run_name)
 
 
 def cmd_data(args: argparse.Namespace) -> None:
-    """Download data, optionally filtered by game and/or split."""
-    game: str | None = args.game
-    split: str | None = args.split
-
-    if split is not None and game is None:
-        logger.error("--split requires --game to be specified.")
-        sys.exit(1)
-
-    parts = [p for p in [game, split] if p is not None]
-    label = f"data [{'/'.join(parts)}]" if parts else "all data"
-    _download(_data_patterns(game, split), DATA_DIR, label)
+    """Download training data."""
+    download_data(game=args.game)
 
 
 # ---------------------------------------------------------------------------
@@ -128,6 +177,7 @@ def cmd_data(args: argparse.Namespace) -> None:
 
 
 def _build_parser() -> argparse.ArgumentParser:
+    """Build the argument parser."""
     parser = argparse.ArgumentParser(
         description="Download models / data from aviralchawla/metaothello on HuggingFace.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -138,27 +188,21 @@ def _build_parser() -> argparse.ArgumentParser:
     sub.add_parser("all", help="Download all models and all data.")
 
     # -- models --
-    p_models = sub.add_parser("models", help="Download GPT models.")
+    p_models = sub.add_parser("models", help="Download GPT model checkpoints.")
     p_models.add_argument(
-        "--game",
-        choices=GAMES,
+        "--run_name",
+        choices=RUN_NAMES,
         default=None,
-        help="Restrict to a single game variant (default: all games).",
+        help="Restrict to a single run (default: all runs).",
     )
 
     # -- data --
-    p_data = sub.add_parser("data", help="Download game data.")
+    p_data = sub.add_parser("data", help="Download training data (Zarr).")
     p_data.add_argument(
         "--game",
         choices=GAMES,
         default=None,
         help="Restrict to a single game variant (default: all games).",
-    )
-    p_data.add_argument(
-        "--split",
-        choices=SPLITS,
-        default=None,
-        help="Restrict to a single split; requires --game (default: all splits).",
     )
 
     return parser

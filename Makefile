@@ -1,4 +1,4 @@
-.PHONY: help install install-dev lint format format-check typecheck check fix test test-fast test-cov clean download-all download-models download-model download-data download-data-game download-data-split generate-data-game generate-data-train train
+.PHONY: help install install-dev lint format format-check typecheck check fix test test-fast test-cov clean download-all download-models download-model download-data download-data-game generate-data generate-data-all-train train
 
 help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -48,28 +48,24 @@ test-cov: ## Run tests with coverage report
 	pytest tests/ --cov=metaothello --cov-report=term-missing
 
 # ---------- Download ----------
-HF_REPO ?= aviralchawla/metaothello
 GAME    ?= classic
 N_GAMES ?= 1
 SPLIT   ?= train
 
-download-all: ## Download all GPT models and all game data from HuggingFace
+download-all: ## Download all models and all training data from HuggingFace
 	python scripts/download.py all
 
-download-models: ## Download all GPT models from HuggingFace
+download-models: ## Download all model checkpoints from HuggingFace
 	python scripts/download.py models
 
-download-model: ## Download GPT model for one game  [GAME=classic]
-	python scripts/download.py models --game $(GAME)
+download-model: ## Download checkpoints for one run  [RUN_NAME=classic]
+	python scripts/download.py models --run_name $(RUN_NAME)
 
-download-data: ## Download all game data from HuggingFace
+download-data: ## Download all training data from HuggingFace
 	python scripts/download.py data
 
-download-data-game: ## Download all splits for one game  [GAME=classic]
+download-data-game: ## Download training data for one game  [GAME=classic]
 	python scripts/download.py data --game $(GAME)
-
-download-data-split: ## Download one game/split pair  [GAME=classic SPLIT=train]
-	python scripts/download.py data --game $(GAME) --split $(SPLIT)
 
 # ---------- Generate Data ----------
 generate-data: ## Generate game data locally  [GAME=classic N_GAMES=1 SPLIT=train]
