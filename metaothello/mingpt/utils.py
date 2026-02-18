@@ -203,6 +203,6 @@ def split_train_test(data: Any, test_frac: float = 0.1) -> tuple[Any, Any]:
     n = len(data)
     train_idx = np.random.choice(range(n), size=int(n * (1 - test_frac)), replace=False)
     test_idx = list(set(range(n)) - set(train_idx))
-    if hasattr(data, "data"):
+    if hasattr(data, "isel"):
         return data.isel(game=train_idx), data.isel(game=test_idx)
     return data[train_idx], data[test_idx]
