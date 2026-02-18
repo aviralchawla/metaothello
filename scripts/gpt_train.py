@@ -6,6 +6,7 @@ import logging
 import sys
 from pathlib import Path
 
+import numpy as np
 import xarray as xr
 
 from metaothello.mingpt.dataset import SequenceDataset
@@ -25,17 +26,17 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DATA = REPO_ROOT / "data"
 
 
-def get_dataset(data_path: Path) -> xr.DataArray:
+def get_dataset(data_path: Path) -> np.ndarray:
     """Open a Zarr game dataset and return the pre-tokenised sequence array.
 
     Args:
         data_path: Path to the .zarr store produced by generate_data.py.
 
     Returns:
-        DataArray of shape (num_games, MAX_STEPS) with dtype int32.
+        Numpy array of shape (num_games, MAX_STEPS) with dtype int32.
     """
     ds = xr.open_zarr(data_path)
-    return ds["seqs"]
+    return ds["seqs"].values
 
 
 def get_last_ckpt(ckpt_dir: Path) -> tuple[Path | None, int]:
@@ -63,7 +64,7 @@ def get_last_ckpt(ckpt_dir: Path) -> tuple[Path | None, int]:
 def load_data(
     config: dict,
     test_frac: float = 0.1,
-) -> tuple[xr.DataArray, xr.DataArray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Load and split game sequence data from Zarr stores.
 
     Args:
@@ -72,7 +73,7 @@ def load_data(
         test_frac: Fraction of each dataset to reserve for the test split.
 
     Returns:
-        Tuple of (train_data, test_data) as xarray DataArrays of shape
+        Tuple of (train_data, test_data) as numpy arrays of shape
         (n_games, MAX_STEPS).
     """
     if len(config["data"]) == 1:
@@ -87,7 +88,7 @@ def load_data(
         train.append(train_ds)
         test.append(test_ds)
 
-    return xr.concat(train, dim="game"), xr.concat(test, dim="game")
+    return np.concatenate(train, axis=0), np.concatenate(test, axis=0)
 
 
 if __name__ == "__main__":
@@ -122,8 +123,8 @@ if __name__ == "__main__":
     train, test = load_data(config, test_frac=0.2)
     logger.info("Train size: %d, Test size: %d", len(train), len(test))
 
-    train_ds = SequenceDataset(shuffle_data(train).values, Tokenizer(), tokenize=False)
-    test_ds = SequenceDataset(shuffle_data(test).values, Tokenizer(), tokenize=False)
+    train_ds = SequenceDataset(shuffle_data(train), Tokenizer(), tokenize=False)
+    test_ds = SequenceDataset(shuffle_data(test), Tokenizer(), tokenize=False)
 
     # Check checkpoints
     ckpt_dir = DATA / "ckpts" / config["run_name"]
@@ -143,6 +144,9 @@ if __name__ == "__main__":
         batch_size=config_training["batch_size"],
         learning_rate=config_training["learning_rate"],
         lr_decay=config_training["lr_decay"],
+        betas=tuple(config_training["betas"]),
+        grad_norm_clip=config_training["grad_norm_clip"],
+        weight_decay=config_training["weight_decay"],
         warmup_tokens=len(train_ds) * train_ds.block_size * 5 if last_epoch == 0 else 0,
         final_tokens=config_training["max_epochs"] * len(train_ds) * (train_ds.block_size - 1),
         num_workers=0,
