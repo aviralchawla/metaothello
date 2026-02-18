@@ -191,6 +191,7 @@ def stream_logits_cache(
 def create_activation_arrays(
     grp: zarr.Group,
     model_name: str,
+    epoch: int,
     num_seqs: int,
     d_vocab: int,
     d_model: int,
@@ -200,6 +201,10 @@ def create_activation_arrays(
 ) -> tuple[zarr.Array, zarr.Array]:
     """Create logits and resid_post arrays in the Zarr store.
 
+    Array names follow the pattern ``{model_name}_epoch{epoch}_logits`` and
+    ``{model_name}_epoch{epoch}_resid_post``, so activations from different
+    checkpoints within the same run coexist without collision.
+
     Arrays are chunked with ``batch_size`` games per chunk along the first
     dimension so that each writer-thread write corresponds to exactly one
     Zarr chunk, avoiding partial-chunk I/O overhead.
@@ -207,6 +212,7 @@ def create_activation_arrays(
     Args:
         grp: Open Zarr group backed by the game data store.
         model_name: Model run name used to prefix array names.
+        epoch: Checkpoint epoch number, embedded in the array name.
         num_seqs: Number of game sequences (first dimension of arrays).
         d_vocab: Vocabulary size.
         d_model: Model embedding dimension.
@@ -219,8 +225,9 @@ def create_activation_arrays(
     Returns:
         Tuple of (logits_arr, residpost_arr) zarr arrays.
     """
-    logits_name = f"{model_name}_logits"
-    resid_name = f"{model_name}_resid_post"
+    prefix = f"{model_name}_epoch{epoch}"
+    logits_name = f"{prefix}_logits"
+    resid_name = f"{prefix}_resid_post"
 
     if not overwrite:
         if logits_name in grp:
@@ -272,8 +279,8 @@ if __name__ == "__main__":
         help=(
             "Model run name. Used to locate checkpoints under "
             "data/{run_name}/ckpts/ and to prefix activation array names "
-            "in the Zarr store (e.g. 'classic' produces 'classic_logits' "
-            "and 'classic_resid_post')."
+            "in the Zarr store (e.g. 'classic' at epoch 250 produces "
+            "'classic_epoch250_logits' and 'classic_epoch250_resid_post')."
         ),
     )
     parser.add_argument(
@@ -307,7 +314,7 @@ if __name__ == "__main__":
     logger.info("Running with config: %s", args)
 
     ckpt_dir = REPO_ROOT / "data" / args.run_name / "ckpts"
-    last_ckpt, _ = get_last_ckpt(ckpt_dir)
+    last_ckpt, last_epoch = get_last_ckpt(ckpt_dir)
     if last_ckpt is None:
         raise FileNotFoundError(
             f"No checkpoint found in {ckpt_dir}. " "Train a model first with scripts/gpt_train.py."
@@ -327,6 +334,7 @@ if __name__ == "__main__":
     logits_arr, residpost_arr = create_activation_arrays(
         grp,
         args.run_name,
+        last_epoch,
         num_seqs,
         model.cfg.d_vocab,
         model.cfg.d_model,
