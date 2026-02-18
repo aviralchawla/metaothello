@@ -127,7 +127,7 @@ if __name__ == "__main__":
     test_ds = SequenceDataset(shuffle_data(test), Tokenizer(), tokenize=False)
 
     # Check checkpoints
-    ckpt_dir = DATA / "ckpts" / config["run_name"]
+    ckpt_dir = DATA / config["run_name"] / "ckpts"
     last_ckpt, last_epoch = get_last_ckpt(ckpt_dir)
     logger.info("Last checkpoint: %s, last epoch: %d", last_ckpt, last_epoch)
 
