@@ -1,4 +1,4 @@
-.PHONY: help install install-dev lint format format-check typecheck check fix test test-fast test-cov clean download-all download-models download-model download-data download-data-game generate-data generate-data-all-train train cache-activations
+.PHONY: help install install-dev lint format format-check typecheck check fix test test-fast test-cov clean download-all download-models download-model download-data download-data-game generate-data generate-data-all-train train cache-activations compute-model-accuracy
 
 help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -85,6 +85,12 @@ train: ## Train a GPT model  [RUN_NAME=classic]
 
 cache-activations: ## Cache model activations into Zarr  [RUN_NAME=classic DATA_PATH=...]
 	python scripts/cache_activations.py --run_name $(RUN_NAME) --data_path $(DATA_PATH)
+
+# ---------- Analysis ----------
+METRIC ?= top1
+
+compute-model-accuracy: ## Compute model accuracy and cache results  [METRIC=top1]
+	python scripts/analysis/model_accuracy/compute_model_accuracy.py --metric $(METRIC)
 
 # ---------- Cleanup ----------
 

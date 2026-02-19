@@ -17,3 +17,4 @@ data/*/ckpts/
 *.out
 writing/**
 pyrightconfig.json
+data/analysis_cache
