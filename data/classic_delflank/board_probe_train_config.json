@@ -3,12 +3,12 @@
         {
             "game": "classic",
             "num_games": 1,
-            "path": "data/classic/train_classic_1M.zarr"
+            "path": "data/classic/board_train_classic_1M.zarr"
         },
         {
             "game": "delflank",
             "num_games": 1,
-            "path": "data/delflank/train_delflank_1M.zarr"
+            "path": "data/delflank/board_train_delflank_1M.zarr"
         }
     ],
     "training": {

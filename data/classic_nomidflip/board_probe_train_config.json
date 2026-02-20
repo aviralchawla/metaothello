@@ -3,12 +3,12 @@
         {
             "game": "classic",
             "num_games": 1,
-            "path": "data/classic/train_classic_1M.zarr"
+            "path": "data/classic/board_train_classic_1M.zarr"
         },
         {
             "game": "nomidflip",
             "num_games": 1,
-            "path": "data/nomidflip/train_nomidflip_1M.zarr"
+            "path": "data/nomidflip/board_train_nomidflip_1M.zarr"
         }
     ],
     "training": {

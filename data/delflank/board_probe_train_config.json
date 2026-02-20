@@ -3,7 +3,7 @@
         {
             "game": "delflank",
             "num_games": 1,
-            "path": "data/delflank/train_delflank_1M.zarr"
+            "path": "data/delflank/board_train_delflank_1M.zarr"
         }
     ],
     "training": {

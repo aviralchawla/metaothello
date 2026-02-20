@@ -3,7 +3,7 @@
         {
             "game": "nomidflip",
             "num_games": 1,
-            "path": "data/nomidflip/train_nomidflip_1M.zarr"
+            "path": "data/nomidflip/board_train_nomidflip_1M.zarr"
         }
     ],
     "training": {

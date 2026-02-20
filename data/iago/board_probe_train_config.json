@@ -3,7 +3,7 @@
         {
             "game": "iago",
             "num_games": 1,
-            "path": "data/iago/train_iago_1M.zarr"
+            "path": "data/iago/board_train_iago_1M.zarr"
         }
     ],
     "training": {
