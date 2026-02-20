@@ -1,0 +1,23 @@
+{
+    "data": [
+        {
+            "game": "classic",
+            "num_games": 1,
+            "path": "data/classic/train_classic_1M.zarr"
+        },
+        {
+            "game": "nomidflip",
+            "num_games": 1,
+            "path": "data/nomidflip/train_nomidflip_1M.zarr"
+        }
+    ],
+    "training": {
+        "max_epochs": 10,
+        "batch_size": 1024,
+        "lr": 0.0003,
+        "wd": 0.01,
+        "betas": [0.9, 0.95],
+        "grad_norm_clip": 1.0,
+        "num_workers": 0
+    }
+}

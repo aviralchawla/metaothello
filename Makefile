@@ -1,4 +1,4 @@
-.PHONY: help install install-dev lint format format-check typecheck check fix test test-fast test-cov clean download-all download-models download-model download-data download-data-game download-all-probes download-probe-single generate-data generate-data-all-train train cache-activations compute-model-accuracy
+.PHONY: help install install-dev lint format format-check typecheck check fix test test-fast test-cov clean download-all download-models download-model download-data download-data-game download-all-probes download-probe-single generate-data generate-data-all-train train train-probe cache-activations compute-model-accuracy
 
 help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -85,9 +85,15 @@ generate-data-all-train: ## Generate 20M training games for each game variant
 # ---------- Train ----------
 RUN_NAME   ?= classic
 DATA_PATH  ?= data/classic/train_classic_20M.zarr
+MODEL_NAME ?= classic
+PROBE_GAME ?= classic
+LAYER      ?= 1
 
 train: ## Train a GPT model  [RUN_NAME=classic]
 	python scripts/gpt_train.py --run_name $(RUN_NAME)
+
+train-probe: ## Train a board probe  [MODEL_NAME=classic PROBE_GAME=classic LAYER=1]
+	python scripts/board_probe_train.py --model_name $(MODEL_NAME) --game $(PROBE_GAME) --layer $(LAYER)
 
 cache-activations: ## Cache model activations into Zarr  [RUN_NAME=classic DATA_PATH=...]
 	python scripts/cache_activations.py --run_name $(RUN_NAME) --data_path $(DATA_PATH)
