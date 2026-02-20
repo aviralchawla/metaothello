@@ -31,12 +31,15 @@ from metaothello.analysis_utils import (
     CACHE_DIR,
     VOCAB_SIZE,
     Metric,
+    alpha_score,
+    calculate_ground_truth,
     gen_games,
     get_device,
     get_game_aliases,
     load_json_cache,
     save_json_cache,
 )
+from metaothello.games import GAME_REGISTRY
 from metaothello.mingpt.tokenizer import Tokenizer
 from metaothello.mingpt.utils import get_last_ckpt, load_model_from_ckpt
 
@@ -69,10 +72,11 @@ def compute_metric(
         metric values.
 
     Raises:
-        NotImplementedError: If ``metric == Metric.ALPHA``.
+        ValueError: If ``valid_mask`` is None or ``metric == Metric.ALPHA`` is
+            passed (alpha has its own inference function).
     """
     if metric == Metric.ALPHA:
-        raise NotImplementedError("Alpha-score is not yet implemented.")
+        raise ValueError("Use run_alpha_inference() for Metric.ALPHA.")
 
     if valid_mask is None:
         raise ValueError("valid_mask is required for all implemented metrics")
@@ -147,6 +151,98 @@ def run_inference(
     return means, std_errs
 
 
+def run_alpha_inference(
+    model: Any,
+    seqs: np.ndarray,
+    game_aliases: list[str],
+    batch_size: int,
+    device: torch.device,
+    tokenizer: Tokenizer,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Compute per-position alpha scores against the Bayesian-optimal distribution.
+
+    Two-phase computation:
+
+    1. **Batched model inference** — forward passes in ``batch_size`` chunks to
+       collect the model's softmax distribution ``q`` at every position.
+    2. **Sequential ground truth** — :func:`calculate_ground_truth` per sequence
+       using all ``game_aliases`` as the hypothesis set, then
+       :func:`alpha_score` per position.
+
+    Using all training game aliases for the ground truth means the Bayesian
+    prior spans every game the model was trained on, so for mixed models the
+    reference distribution already accounts for game ambiguity.
+
+    Positions where alpha is undefined (``KL(p||u) == 0``, i.e. the ground
+    truth equals the uniform reference) are recorded as NaN and excluded from
+    the mean/std via ``np.nanmean`` / ``np.nanstd``.
+
+    Args:
+        model: A GPT model in eval mode on ``device``.
+        seqs: Token ID array of shape ``(N, MAX_STEPS)`` from :func:`gen_games`.
+        game_aliases: All training game aliases for this run.
+        batch_size: Sequences per forward pass.
+        device: Torch device the model lives on.
+        tokenizer: Tokenizer for decoding token IDs to move names.
+
+    Returns:
+        Tuple of ``(means, std_errs)`` each of shape ``(T,)`` = ``(59,)``.
+    """
+    n, t_plus_1 = seqs.shape
+    t = t_plus_1 - 1  # 59 prediction positions
+    device_type = device.type
+    game_classes = [GAME_REGISTRY[alias] for alias in game_aliases]
+
+    # --- Phase 1: batched model inference ---
+    all_q = np.empty((n, t, tokenizer.vocab_size), dtype=np.float32)
+    with torch.inference_mode():
+        for start in tqdm(range(0, n, batch_size), desc="Model inference", leave=False):
+            end = min(start + batch_size, n)
+            x = torch.tensor(seqs[start:end, :-1], dtype=torch.long, device=device)
+            autocast_ctx = (
+                torch.autocast(device_type="cuda", dtype=torch.float16)
+                if device_type == "cuda"
+                else contextlib.nullcontext()
+            )
+            with autocast_ctx:
+                logits, _ = model(x)
+            all_q[start:end] = F.softmax(logits.float(), dim=-1).cpu().numpy()
+
+    # --- Phase 2: sequential ground truth + alpha scoring ---
+    all_scores: list[list[float]] = []
+    for idx in tqdm(range(n), desc="Alpha scoring", leave=False):
+        # Decode token IDs → move names (Iago sequences are already in mapped space).
+        # Do NOT filter None: in Iago, the physical square 'a2' maps to None in the
+        # shuffled token space, so None is a legitimate move token, not a padding marker.
+        names: list[str | None] = tokenizer.decode(seqs[idx].tolist())
+        try:
+            p_gt, _ = calculate_ground_truth(names, game_classes, tokenizer, skip_p=False)
+        except ValueError:
+            all_scores.append([float("nan")] * t)
+            continue
+
+        q = all_q[idx]  # (T, vocab_size)
+        row: list[float] = []
+        for pos in range(len(p_gt)):
+            try:
+                row.append(alpha_score(p_gt[pos], q[pos]))
+            except ValueError:
+                row.append(float("nan"))
+        # Pad to T in case ground truth returned fewer positions
+        row.extend([float("nan")] * (t - len(row)))
+        all_scores.append(row)
+
+    stacked = np.array(all_scores)  # (N, T)
+    n_valid = np.sum(~np.isnan(stacked), axis=0)
+    means = np.nanmean(stacked, axis=0)
+    std_errs = np.where(
+        n_valid > 1,
+        np.nanstd(stacked, axis=0, ddof=1) / np.sqrt(np.maximum(n_valid, 1)),
+        np.nan,
+    )
+    return means, std_errs
+
+
 # ---------------------------------------------------------------------------
 # Main evaluation loop
 # ---------------------------------------------------------------------------
@@ -194,7 +290,14 @@ def evaluate_all(
         for game_alias in game_aliases:
             logger.info("  %s → %s: generating %d games...", run_name, game_alias, num_games)
             seqs, valid_masks = gen_games(game_alias, num_games, tokenizer)
-            means, std_errs = run_inference(model, seqs, metric, batch_size, device, valid_masks)
+            if metric == Metric.ALPHA:
+                means, std_errs = run_alpha_inference(
+                    model, seqs, game_aliases, batch_size, device, tokenizer
+                )
+            else:
+                means, std_errs = run_inference(
+                    model, seqs, metric, batch_size, device, valid_masks
+                )
             run_results[game_alias] = {
                 "means": means.tolist(),
                 "std_errs": std_errs.tolist(),
@@ -230,7 +333,7 @@ if __name__ == "__main__":
         "--metric",
         type=str,
         default=Metric.TOP1.value,
-        choices=[m.value for m in Metric if m != Metric.ALPHA],
+        choices=[m.value for m in Metric],
         help="Evaluation metric (default: top1).",
     )
     parser.add_argument(

@@ -78,7 +78,11 @@ def plot_model_accuracy_over_moves(cache: dict, metric: Metric) -> None:
             ax.set_title(RUN_LABELS[run_name])
 
     # Shared axis labels
-    metric_ylabel = "Top-1 Accuracy" if metric == Metric.TOP1 else "Valid-Move Probability"
+    metric_ylabel = {
+        Metric.TOP1: "Top-1 Accuracy",
+        Metric.CORRECT_PROB: "Valid-Move Probability",
+        Metric.ALPHA: "Alpha Score",
+    }[metric]
     fig.text(0.5, 0.02, "Move Number", ha="center")
     fig.text(0.01, 0.5, metric_ylabel, va="center", rotation="vertical")
 
@@ -107,7 +111,7 @@ if __name__ == "__main__":
         "--metric",
         type=str,
         default=Metric.TOP1.value,
-        choices=[m.value for m in Metric if m != Metric.ALPHA],
+        choices=[m.value for m in Metric],
         help="Metric to plot (default: top1).",
     )
     parser.add_argument("-v", "--verbose", action="store_true")

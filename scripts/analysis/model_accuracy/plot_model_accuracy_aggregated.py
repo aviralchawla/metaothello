@@ -93,7 +93,11 @@ def plot_model_accuracy_aggregated(cache: dict, metric: Metric) -> None:
     ax_single.set_title("Single-Game")
     ax_mixed.set_title("Mixed-Game")
 
-    metric_ylabel = "Top-1 Accuracy" if metric == Metric.TOP1 else "Valid-Move Probability"
+    metric_ylabel = {
+        Metric.TOP1: "Top-1 Accuracy",
+        Metric.CORRECT_PROB: "Valid-Move Probability",
+        Metric.ALPHA: "Alpha Score",
+    }[metric]
     ax_single.set_ylabel(metric_ylabel)
     fig.supxlabel("Model")
 
@@ -125,7 +129,7 @@ if __name__ == "__main__":
         "--metric",
         type=str,
         default=Metric.TOP1.value,
-        choices=[m.value for m in Metric if m != Metric.ALPHA],
+        choices=[m.value for m in Metric],
         help="Metric to plot (default: top1).",
     )
     parser.add_argument("-v", "--verbose", action="store_true")
