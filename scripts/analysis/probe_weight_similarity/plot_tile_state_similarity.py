@@ -1,4 +1,4 @@
-"""Reproduce Figure 11: tile-level probe-weight cosine similarity heatmaps."""
+"""Tile-level probe-weight cosine similarity heatmaps."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[3]
 DATA_DIR: Final[Path] = REPO_ROOT / "data"
 OUTPUT_STEM: Final[Path] = (
-    REPO_ROOT / "figures" / "probe_weight_similarity" / "tile_state_similarity_figure11"
+    REPO_ROOT / "figures" / "probe_weight_similarity" / "tile_state_similarity"
 )
 
 _LAYERS: Final[list[int]] = list(range(1, 9))
@@ -30,6 +30,15 @@ _N_STATES: Final[int] = 3
 _BOARD_DIM: Final[int] = 8
 _VMIN: Final[float] = 0.0
 _VMAX: Final[float] = 1.0
+
+# Dense heatmap-specific typography (smaller than default ICML panel text).
+_GROUP_TITLE_FONTSIZE: Final[float] = 8.0
+_STATE_TITLE_FONTSIZE: Final[float] = 6.3
+_LAYER_LABEL_FONTSIZE: Final[float] = 6.0
+_TICK_LABEL_FONTSIZE: Final[float] = 3.1
+_CELL_TEXT_FONTSIZE: Final[float] = 2.1
+_CBAR_LABEL_FONTSIZE: Final[float] = 6.0
+_CBAR_TICK_FONTSIZE: Final[float] = 4.8
 
 
 def _probe_path(run_name: str, game_alias: str, layer: int) -> Path:
@@ -109,7 +118,7 @@ def _annotate_cells(ax: plt.Axes, values: np.ndarray) -> None:
                 f"{value:.2f}",
                 ha="center",
                 va="center",
-                fontsize=2.7,
+                fontsize=_CELL_TEXT_FONTSIZE,
                 color=text_color,
             )
 
@@ -119,13 +128,26 @@ def _plot_group(
     layer_maps: dict[int, np.ndarray],
     pair_title: str,
 ) -> None:
-    """Render one side of Figure 11 (Classic vs one rule variant)."""
+    """Render one side of the similarity figure (Classic vs one rule variant)."""
+    subfig.text(
+        0.49,
+        0.988,
+        pair_title,
+        ha="center",
+        va="top",
+        fontsize=_GROUP_TITLE_FONTSIZE,
+    )
+
     gs = subfig.add_gridspec(
         nrows=len(_LAYERS),
         ncols=4,
         width_ratios=[1.0, 1.0, 1.0, 0.07],
-        wspace=0.24,
-        hspace=0.26,
+        left=0.09,
+        right=0.98,
+        top=0.940,
+        bottom=0.025,
+        wspace=0.16,
+        hspace=0.20,
     )
     color_ref = None
 
@@ -149,18 +171,21 @@ def _plot_group(
             ax.set_yticks(ticks)
             ax.set_xticklabels(labels)
             ax.set_yticklabels(labels)
-            ax.tick_params(axis="both", labelsize=4, length=1.0, pad=0.2)
+            ax.tick_params(axis="both", labelsize=_TICK_LABEL_FONTSIZE, length=1.0, pad=0.15)
 
             if row_idx == 0:
-                ax.set_title(state_name, pad=1.8)
+                ax.set_title(state_name, fontsize=_STATE_TITLE_FONTSIZE, pad=1.0)
             if state_idx == 0:
-                ax.set_ylabel(f"L{layer}", rotation=0, labelpad=10, va="center")
+                ax.set_ylabel(
+                    f"L{layer}",
+                    rotation=0,
+                    labelpad=8,
+                    va="center",
+                    fontsize=_LAYER_LABEL_FONTSIZE,
+                )
             else:
                 ax.set_ylabel("")
-            if row_idx == len(_LAYERS) - 1:
-                ax.set_xlabel("column", labelpad=1.0)
-            else:
-                ax.set_xlabel("")
+            ax.set_xlabel("")
 
     if color_ref is None:
         msg = "No heatmaps were plotted."
@@ -168,20 +193,19 @@ def _plot_group(
 
     cbar_ax = subfig.add_subplot(gs[:, 3])
     cbar = subfig.colorbar(color_ref, cax=cbar_ax)
-    cbar.set_label("Cosine Similarity")
-    cbar_ax.tick_params(labelsize=6, length=2.0)
-    subfig.suptitle(pair_title, y=0.995)
+    cbar.set_label("Cosine Similarity", fontsize=_CBAR_LABEL_FONTSIZE, labelpad=2.0)
+    cbar_ax.tick_params(labelsize=_CBAR_TICK_FONTSIZE, length=2.0, pad=0.5)
 
 
-def plot_figure_11() -> None:
-    """Create and save the Figure 11 reproduction."""
+def plot_tile_state_similarity() -> None:
+    """Create and save the tile-state similarity figure."""
     setup_icml_style()
 
     left_maps = _compute_similarity_maps("classic_nomidflip", "nomidflip")
     right_maps = _compute_similarity_maps("classic_delflank", "delflank")
 
-    fig = plt.figure(figsize=(ICML_FULL_WIDTH, ICML_FULL_WIDTH * 1.34))
-    left_subfig, right_subfig = fig.subfigures(1, 2, wspace=0.08)
+    fig = plt.figure(figsize=(ICML_FULL_WIDTH, ICML_FULL_WIDTH * 1.20))
+    left_subfig, right_subfig = fig.subfigures(1, 2, wspace=0.025)
     _plot_group(left_subfig, left_maps, "Classic vs. NoMidFlip")
     _plot_group(right_subfig, right_maps, "Classic vs. DelFlank")
 
@@ -190,7 +214,7 @@ def plot_figure_11() -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Plot tile-level probe-weight similarity heatmaps (Figure 11)."
+        description="Plot tile-level probe-weight similarity heatmaps."
     )
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
@@ -199,4 +223,4 @@ if __name__ == "__main__":
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
     )
-    plot_figure_11()
+    plot_tile_state_similarity()
