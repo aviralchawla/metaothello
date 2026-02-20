@@ -1,4 +1,4 @@
-.PHONY: help install install-dev lint format format-check typecheck check fix test test-fast test-cov clean download-all download-models download-model download-data download-data-game generate-data generate-data-all-train train cache-activations compute-model-accuracy
+.PHONY: help install install-dev lint format format-check typecheck check fix test test-fast test-cov clean download-all download-models download-model download-data download-data-game download-all-probes download-probe-single generate-data generate-data-all-train train cache-activations compute-model-accuracy
 
 help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -53,19 +53,25 @@ N_GAMES ?= 1
 SPLIT   ?= train
 
 download-all: ## Download all models and all training data from HuggingFace
-	python scripts/download.py all
+	python scripts/download_models.py all
 
 download-models: ## Download all model checkpoints from HuggingFace
-	python scripts/download.py models
+	python scripts/download_models.py models
 
 download-model: ## Download checkpoints for one run  [RUN_NAME=classic]
-	python scripts/download.py models --run_name $(RUN_NAME)
+	python scripts/download_models.py models --run_name $(RUN_NAME)
 
 download-data: ## Download all training data from HuggingFace
-	python scripts/download.py data
+	python scripts/download_models.py data
 
 download-data-game: ## Download training data for one game  [GAME=classic]
-	python scripts/download.py data --game $(GAME)
+	python scripts/download_models.py data --game $(GAME)
+
+download-all-probes: ## Download all board probe checkpoints from HuggingFace
+	python scripts/download_probes.py
+
+download-probe-single: ## Download board probes for one run  [RUN_NAME=classic]
+	python scripts/download_probes.py --run_name $(RUN_NAME)
 
 # ---------- Generate Data ----------
 generate-data: ## Generate game data locally  [GAME=classic N_GAMES=1 SPLIT=train]

@@ -1,4 +1,4 @@
-"""Download pretrained models and pregenerated datasets from HuggingFace Hub.
+"""Download pretrained GPT models and pregenerated datasets from HuggingFace Hub.
 
 Assets are hosted across two HuggingFace repositories:
 
@@ -20,9 +20,9 @@ Usage (via Makefile -- preferred)::
 
 Usage (direct)::
 
-    python scripts/download.py all
-    python scripts/download.py models [--run_name RUN_NAME]
-    python scripts/download.py data   [--game GAME]
+    python scripts/download_models.py all
+    python scripts/download_models.py models [--run_name RUN_NAME]
+    python scripts/download_models.py data   [--game GAME]
 """
 
 from __future__ import annotations
@@ -179,7 +179,7 @@ def cmd_data(args: argparse.Namespace) -> None:
 def _build_parser() -> argparse.ArgumentParser:
     """Build the argument parser."""
     parser = argparse.ArgumentParser(
-        description="Download models / data from aviralchawla/metaothello on HuggingFace.",
+        description="Download GPT models / data from aviralchawla/metaothello on HuggingFace.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     sub = parser.add_subparsers(dest="command", required=True)
