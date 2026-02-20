@@ -25,13 +25,13 @@ ICML_FULL_WIDTH: float = 6.75
 ICML_HALF_WIDTH: float = 3.25
 
 # ---------------------------------------------------------------------------
-# Game color palette (Coolors: https://coolors.co/ff595e-ffca3a-8ac926-1982c4-6a4c93)
+# Game color palette (Coolors: https://coolors.co/2863c2-ee6457-27a039-e9c616-41cbdd)
 # ---------------------------------------------------------------------------
 GAME_COLORS: dict[str, str] = {
-    "classic": "#1982c4",  # Steel Blue
-    "nomidflip": "#ffca3a",  # Golden Pollen
-    "delflank": "#8ac926",  # Yellow Green
-    "iago": "#6a4c93",  # Dusty Grape
+    "classic": "#2863c2",  # Smart Blue
+    "nomidflip": "#ee6457",  # Vibrant Coral
+    "delflank": "#27a039",  # Medium Jungle
+    "iago": "#e9c616",  # Bright Amber
 }
 
 # ---------------------------------------------------------------------------
