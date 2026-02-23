@@ -3,10 +3,9 @@
 For a given model (identified by ``--model_name``), game variant
 (``--game``), and transformer layer (``--layer``), this script:
 
-1. Streams cached activations and board states from a Zarr store in chunks
-   to avoid loading the full dataset into memory.
+1. Loads cached activations and board states from a Zarr store.
 2. Applies turn-based masking to board states (current-player-relative).
-3. Trains a ``LinearProbe`` via a streaming training loop.
+3. Trains a ``LinearProbe`` using ``ProbeTrainer``.
 4. Saves the trained probe to
    ``data/{model_name}/board_probes/{game}_board_L{layer}.ckpt``.
 """
@@ -21,20 +20,16 @@ from pathlib import Path
 
 import numpy as np
 import torch
-import zarr
-from tqdm import tqdm
+import xarray as xr
+from torch.utils.data import TensorDataset
 
-from metaothello.mingpt.board_probe import LinearProbe
+from metaothello.mingpt.board_probe import LinearProbe, ProbeTrainer
 from metaothello.mingpt.utils import get_last_ckpt, set_seed
 
 logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DATA = REPO_ROOT / "data"
-
-# Number of games to load per zarr chunk. Balances memory usage against I/O
-# overhead — each chunk reads all layers then discards unneeded ones.
-_CHUNK_GAMES = 1024
 
 
 def apply_turn_mask(board_states: np.ndarray) -> np.ndarray:
@@ -56,105 +51,58 @@ def apply_turn_mask(board_states: np.ndarray) -> np.ndarray:
     return board_states * turn_mask.reshape(1, -1, 1, 1)
 
 
-def load_chunk(
-    resid_arr: zarr.Array,
-    board_arr: zarr.Array,
-    layer_idx: int,
-    start: int,
-    end: int,
+def get_embeddings_and_boards(
+    ds: xr.Dataset,
+    model_name: str,
+    epoch: int,
+    layer: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Load a chunk of games from zarr, extracting one layer and applying turn mask.
+    """Extract activation embeddings and turn-masked board states from a Zarr dataset.
 
     Args:
-        resid_arr: Zarr array of shape ``(N, MAX_STEPS, d_model, n_layers)``.
-        board_arr: Zarr array of shape ``(N, MAX_STEPS, BOARD_DIM, BOARD_DIM)``.
-        layer_idx: 0-indexed layer to extract.
-        start: First game index (inclusive).
-        end: Last game index (exclusive).
+        ds: xarray Dataset opened from a Zarr store containing cached
+            activations (``{model_name}_epoch{epoch}_resid_post``) and
+            board states (``board_state``).
+        model_name: Model run name used to locate the activation array.
+        epoch: Checkpoint epoch number embedded in the activation array name.
+        layer: 1-indexed transformer layer to extract.
 
     Returns:
-        Tuple of ``(x, y)`` where ``x`` has shape ``(chunk*T, d_model)``
-        and ``y`` has shape ``(chunk*T, 64)``.
+        Tuple of ``(x, y)`` where ``x`` has shape ``(N*T, d_model)`` and
+        ``y`` has shape ``(N*T, 64)``.
     """
-    # Read only the chunk from zarr — drops last position (no model output there)
-    resid = resid_arr[start:end, :-1, :, layer_idx]  # (chunk, 59, d_model)
-    boards = board_arr[start:end, :-1, :, :]  # (chunk, 59, 8, 8)
-    boards = apply_turn_mask(boards)
+    resid_key = f"{model_name}_epoch{epoch}_resid_post"
+    # resid_post shape: (N, MAX_STEPS, d_model, n_layers) — drop last position, select layer
+    embeddings = ds[resid_key][:, :-1, :, layer - 1].values
+    # board_state shape: (N, MAX_STEPS, 8, 8) — drop last position
+    board_states = ds["board_state"][:, :-1, :, :].values
+    board_states = apply_turn_mask(board_states)
 
-    x = torch.tensor(resid.reshape(-1, resid.shape[-1]), dtype=torch.float32)
-    y = torch.tensor(boards.reshape(-1, 64), dtype=torch.int)
+    x = torch.tensor(embeddings, dtype=torch.float32).reshape(-1, embeddings.shape[-1])
+    y = torch.tensor(board_states, dtype=torch.int).reshape(-1, 64)
+
     return x, y
 
 
-def run_epoch(
-    probe: torch.nn.Module,
-    resid_arr: zarr.Array,
-    board_arr: zarr.Array,
-    layer_idx: int,
-    game_start: int,
-    game_end: int,
-    batch_size: int,
-    device: torch.device | int,
-    optimizer: torch.optim.Optimizer | None = None,
-    grad_norm_clip: float = 1.0,
-    epoch_num: int = 0,
-    split: str = "train",
-) -> float:
-    """Run one epoch by streaming through zarr in game-level chunks.
+def split_train_test(
+    x: torch.Tensor,
+    y: torch.Tensor,
+    test_frac: float = 0.2,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Split data into train and test sets.
 
     Args:
-        probe: LinearProbe model (possibly wrapped in DataParallel).
-        resid_arr: Zarr array for residual-stream activations.
-        board_arr: Zarr array for board states.
-        layer_idx: 0-indexed layer to extract.
-        game_start: First game index for this split (inclusive).
-        game_end: Last game index for this split (exclusive).
-        batch_size: Mini-batch size for gradient updates.
-        device: Device the model lives on.
-        optimizer: Optimizer for training; None for eval.
-        grad_norm_clip: Max gradient norm for clipping.
-        epoch_num: Current epoch number for logging.
-        split: ``"train"`` or ``"test"`` for logging.
+        x: Input tensor of shape ``(N, d_model)``.
+        y: Target tensor of shape ``(N, 64)``.
+        test_frac: Fraction of data to reserve for testing.
 
     Returns:
-        Mean loss over all batches in the epoch.
+        Tuple of ``(x_train, y_train, x_test, y_test)``.
     """
-    is_train = optimizer is not None
-    probe.train(is_train)
-    all_losses: list[float] = []
+    n = x.shape[0]
+    split = int(n * (1 - test_frac))
 
-    num_chunks = (game_end - game_start + _CHUNK_GAMES - 1) // _CHUNK_GAMES
-    pbar = tqdm(range(num_chunks), desc=f"epoch {epoch_num + 1} {split}", leave=False)
-
-    for chunk_idx in pbar:
-        cs = game_start + chunk_idx * _CHUNK_GAMES
-        ce = min(cs + _CHUNK_GAMES, game_end)
-        x, y_target = load_chunk(resid_arr, board_arr, layer_idx, cs, ce)
-
-        # Shuffle within chunk for training
-        if is_train:
-            perm = torch.randperm(x.shape[0])
-            x, y_target = x[perm], y_target[perm]
-
-        # Mini-batch loop
-        for i in range(0, x.shape[0], batch_size):
-            xb = x[i : i + batch_size].to(device)
-            yb = y_target[i : i + batch_size].to(device)
-
-            with torch.set_grad_enabled(is_train):
-                _logits, loss = probe(xb, yb)
-                loss = loss.mean()
-                all_losses.append(loss.item())
-
-            if is_train:
-                probe.zero_grad()
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(probe.parameters(), grad_norm_clip)
-                optimizer.step()
-
-        pbar.set_description(f"epoch {epoch_num + 1} {split} loss {np.mean(all_losses):.4f}")
-
-    return float(np.mean(all_losses))
+    return x[:split], y[:split], x[split:], y[split:]
 
 
 def find_data_entry(config: dict, game: str) -> dict:
@@ -234,84 +182,23 @@ if __name__ == "__main__":
         sys.exit(1)
     logger.info("Using activations from epoch %d", last_epoch)
 
-    # Open zarr arrays directly (lazy — no data loaded yet)
-    store = zarr.open(str(data_path), mode="r")
-    resid_key = f"{args.model_name}_epoch{last_epoch}_resid_post"
-    resid_arr = store[resid_key]
-    board_arr = store["board_state"]
-    num_games = resid_arr.shape[0]
+    # Load dataset
+    ds = xr.open_zarr(data_path)
+    x, y = get_embeddings_and_boards(ds, args.model_name, last_epoch, args.layer)
+    x_train, y_train, x_test, y_test = split_train_test(x, y, test_frac=0.2)
+    logger.info("Train size: %d, Test size: %d", x_train.shape[0], x_test.shape[0])
 
-    # Train/test split at the game level
-    test_frac = 0.2
-    train_end = int(num_games * (1 - test_frac))
-    logger.info(
-        "Dataset: %d games (%d train, %d test)",
-        num_games,
-        train_end,
-        num_games - train_end,
-    )
+    train_data = TensorDataset(x_train, y_train)
+    test_data = TensorDataset(x_test, y_test)
 
-    # Setup probe and optimizer
-    if torch.cuda.is_available():
-        device: torch.device | int = torch.cuda.current_device()
-    elif torch.mps.is_available():
-        device = torch.device("mps")
-    else:
-        device = torch.device("cpu")
-
-    probe = LinearProbe(device=device)
-    if torch.cuda.is_available():
-        probe = torch.nn.DataParallel(probe).to(device)
-
-    tr = config["training"]
-    optimizer = torch.optim.AdamW(
-        probe.parameters(),
-        lr=tr["lr"],
-        weight_decay=tr["wd"],
-        betas=tuple(tr.get("betas", (0.9, 0.95))),
-    )
-    layer_idx = args.layer - 1  # convert 1-indexed CLI arg to 0-indexed
+    # Setup probe and trainer
+    probe = LinearProbe(device=torch.cuda.current_device() if torch.cuda.is_available() else "cpu")
+    tr_config = config["training"]
 
     try:
-        best_test_loss = float("inf")
-        for epoch in range(tr["max_epochs"]):
-            train_loss = run_epoch(
-                probe,
-                resid_arr,
-                board_arr,
-                layer_idx,
-                game_start=0,
-                game_end=train_end,
-                batch_size=tr["batch_size"],
-                device=device,
-                optimizer=optimizer,
-                grad_norm_clip=tr["grad_norm_clip"],
-                epoch_num=epoch,
-                split="train",
-            )
-            test_loss = run_epoch(
-                probe,
-                resid_arr,
-                board_arr,
-                layer_idx,
-                game_start=train_end,
-                game_end=num_games,
-                batch_size=tr["batch_size"],
-                device=device,
-                optimizer=None,
-                epoch_num=epoch,
-                split="test",
-            )
-            logger.info(
-                "Epoch %d — train loss: %.4f, test loss: %.4f",
-                epoch + 1,
-                train_loss,
-                test_loss,
-            )
-            if test_loss < best_test_loss:
-                best_test_loss = test_loss
-
-        logger.info("Training complete. Best test loss: %.4f", best_test_loss)
+        trainer = ProbeTrainer(probe, train_data, test_data, tr_config)
+        logger.info("Training on device: %s", trainer.device)
+        trainer.train()
     except Exception:
         logger.exception("Training failed.")
         sys.exit(1)
