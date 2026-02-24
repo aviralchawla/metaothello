@@ -2,7 +2,8 @@
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![HuggingFace](https://img.shields.io/badge/🤗-Models%20%26%20Data-orange)](https://huggingface.co/aviralchawla/metaothello)
+[![HuggingFace Models](https://img.shields.io/badge/🤗-Models-orange)](https://huggingface.co/aviralchawla/metaothello)
+[![HuggingFace Data](https://img.shields.io/badge/🤗-Data-orange)](https://huggingface.co/datasets/aviralchawla/metaothello)
 
 > **Paper:** [MetaOthello: A Controlled Study of Multiple World Models in Transformers](pending_link) — *Arxiv*
 
@@ -337,8 +338,6 @@ make -C scripts/analysis figures
 make -C scripts/analysis all     # compute then figures in sequence
 make -C scripts/analysis help    # list all targets with descriptions
 ```
-
-All figures are saved as both PDF and PNG at 300 DPI.
 
 ---
 
