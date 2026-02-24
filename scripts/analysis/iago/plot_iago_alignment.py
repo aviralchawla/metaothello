@@ -51,7 +51,9 @@ def plot_iago_alignment(cache: dict) -> None:
         logger.error("No 'classic_iago' data found in cache.")
         return
 
-    fig, ax = plt.subplots(figsize=(ICML_HALF_WIDTH, ICML_HALF_WIDTH * 0.75))
+    fig, ax = plt.subplots(
+        figsize=(ICML_HALF_WIDTH, ICML_HALF_WIDTH * 0.75), constrained_layout=True
+    )
 
     # Baseline
     base_data = run_data["baseline"]
@@ -83,7 +85,6 @@ def plot_iago_alignment(cache: dict) -> None:
         base_means[39] + 0.005,
         "Classic baseline",
         color="black",
-        fontsize=7,
         ha="center",
         va="bottom",
         bbox={"facecolor": "white", "alpha": 0.8, "edgecolor": "none", "pad": 1},

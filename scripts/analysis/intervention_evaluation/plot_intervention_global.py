@@ -1,5 +1,7 @@
 """Plot grouped bar chart of global intervention errors: Null vs Correct vs Cross."""
 
+from __future__ import annotations
+
 import argparse
 import logging
 from pathlib import Path
@@ -144,7 +146,7 @@ def plot_global_comparison(cache: dict) -> None:
         ax.set_xlabel("Game Variant")
         ax.set_xticks(x)
         ax.set_xticklabels(labels)
-        ax.set_title(title_dict.get(model, model), fontweight="bold", fontsize=7)
+        ax.set_title(title_dict.get(model, model))
 
         if model == models[0]:
             ax.set_ylabel("Prediction Error")
@@ -162,7 +164,6 @@ def plot_global_comparison(cache: dict) -> None:
                     f"{null_m[i]:.1f}",
                     ha="center",
                     va="bottom",
-                    fontsize=5,
                 )
             if not np.isnan(correct_m[i]):
                 ax.text(
@@ -171,7 +172,6 @@ def plot_global_comparison(cache: dict) -> None:
                     f"{correct_m[i]:.1f}",
                     ha="center",
                     va="bottom",
-                    fontsize=5,
                 )
             if not np.isnan(cross_m[i]):
                 ax.text(
@@ -180,7 +180,6 @@ def plot_global_comparison(cache: dict) -> None:
                     f"{cross_m[i]:.1f}",
                     ha="center",
                     va="bottom",
-                    fontsize=5,
                 )
 
     legend_handles = [
@@ -194,7 +193,6 @@ def plot_global_comparison(cache: dict) -> None:
         ncol=len(legend_handles),
         frameon=False,
         bbox_to_anchor=(0.5, -0.15),
-        fontsize=6,
     )
 
     save_figure(fig, FIGURES_DIR / "intervention_global_comparison")

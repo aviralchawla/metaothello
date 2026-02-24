@@ -105,11 +105,15 @@ def plot_cosine_vs_diff(cache: dict) -> None:
         "classic_delflank": "Classic vs DelFlank",
     }
 
-    state_colors = {"mine": "steelblue", "yours": "coral", "empty": "seagreen"}
+    state_colors = {"mine": "#4682b4", "yours": "#ff7f50", "empty": "#2e8b57"}
     state_markers = {"mine": "o", "yours": "s", "empty": "^"}
 
     fig, axes = plt.subplots(
-        1, len(models), figsize=(ICML_HALF_WIDTH, ICML_HALF_WIDTH * 0.7), sharey=True
+        1,
+        len(models),
+        figsize=(ICML_HALF_WIDTH, ICML_HALF_WIDTH * 0.7),
+        sharey=True,
+        constrained_layout=True,
     )
     if len(models) == 1:
         axes = [axes]
@@ -169,7 +173,6 @@ def plot_cosine_vs_diff(cache: dict) -> None:
                 f"$r = {corr:.3f}$",
                 xy=(0.05, 0.95),
                 xycoords="axes fraction",
-                fontsize=8,
                 va="top",
                 bbox={
                     "boxstyle": "round,pad=0.3",

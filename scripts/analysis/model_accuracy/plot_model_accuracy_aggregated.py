@@ -98,7 +98,6 @@ def _draw_bracket(
         transform=trans,
         ha="right",
         va="center",
-        fontsize=6,
         color=color,
         rotation=90,
         clip_on=False,
