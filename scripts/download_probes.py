@@ -6,8 +6,8 @@ Probes are hosted in the model repo (``aviralchawla/metaothello``) under
 
 Usage (via Makefile -- preferred)::
 
-    make download-all-probes
-    make download-probe-single RUN_NAME=classic
+    make download-board-probes
+    make download-board-probe RUN_NAME=classic
 
 Usage (direct)::
 

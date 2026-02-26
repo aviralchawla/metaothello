@@ -12,11 +12,11 @@ Assets are hosted across two HuggingFace repositories:
 
 Usage (via Makefile -- preferred)::
 
-    make download-all
+    make download-all            # models + data + board probes
     make download-models
     make download-model  RUN_NAME=classic
     make download-data
-    make download-data-game GAME=classic
+    make download-data-game  GAME=classic
 
 Usage (direct)::
 

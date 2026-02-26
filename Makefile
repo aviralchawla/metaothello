@@ -1,4 +1,4 @@
-.PHONY: help install install-dev lint format format-check typecheck check fix test test-fast test-cov clean download-all download-models download-model download-data download-data-game download-all-probes download-probe-single generate-data generate-data-all-train train train-probe cache-activations compute-model-accuracy
+.PHONY: help install install-dev lint format format-check typecheck check fix test test-fast test-cov clean download-all download-models download-model download-data download-data-game download-board-probes download-board-probe generate-data generate-data-all-train train-model train-board-probe cache-activations compute-model-accuracy
 
 help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -52,8 +52,9 @@ GAME    ?= classic
 N_GAMES ?= 1
 SPLIT   ?= train
 
-download-all: ## Download all models and all training data from HuggingFace
+download-all: ## Download all pretrained assets (models + data + board probes)
 	python scripts/download_models.py all
+	python scripts/download_probes.py
 
 download-models: ## Download all model checkpoints from HuggingFace
 	python scripts/download_models.py models
@@ -67,10 +68,10 @@ download-data: ## Download all training data from HuggingFace
 download-data-game: ## Download training data for one game  [GAME=classic]
 	python scripts/download_models.py data --game $(GAME)
 
-download-all-probes: ## Download all board probe checkpoints from HuggingFace
+download-board-probes: ## Download all board probe checkpoints from HuggingFace
 	python scripts/download_probes.py
 
-download-probe-single: ## Download board probes for one run  [RUN_NAME=classic]
+download-board-probe: ## Download board probes for one run  [RUN_NAME=classic]
 	python scripts/download_probes.py --run_name $(RUN_NAME)
 
 # ---------- Generate Data ----------
@@ -89,10 +90,10 @@ MODEL_NAME ?= classic
 PROBE_GAME ?= classic
 LAYER      ?= 1
 
-train: ## Train a GPT model  [RUN_NAME=classic]
+train-model: ## Train a GPT model  [RUN_NAME=classic]
 	python scripts/gpt_train.py --run_name $(RUN_NAME)
 
-train-probe: ## Train a board probe  [MODEL_NAME=classic PROBE_GAME=classic LAYER=1]
+train-board-probe: ## Train a board probe  [MODEL_NAME=classic PROBE_GAME=classic LAYER=1]
 	python scripts/board_probe_train.py --model_name $(MODEL_NAME) --game $(PROBE_GAME) --layer $(LAYER)
 
 cache-activations: ## Cache model activations into Zarr  [RUN_NAME=classic DATA_PATH=...]

@@ -27,8 +27,7 @@ Foundation models must handle multiple generative processes, yet mechanistic int
 5. [Training a GPT Model](#training-a-gpt-model)
 6. [Training Board Probes](#training-board-probes)
 7. [Reproducing Analysis and Figures](#reproducing-analysis-and-figures)
-8. [Code Quality](#code-quality)
-9. [Citation](#citation)
+8. [Citation](#citation)
 
 ---
 
@@ -125,7 +124,7 @@ All pretrained models, board probes, and training data are hosted on HuggingFace
 ### Download everything at once
 
 ```bash
-make download-all        # GPT checkpoints + training data + board probes
+make download-all        # All pretrained assets (models + data + board probes)
 ```
 
 ### Download selectively
@@ -140,8 +139,8 @@ make download-data                             # All game datasets
 make download-data-game GAME=classic           # Single game
 
 # Board probe checkpoints
-make download-all-probes                       # All runs (8 probes × games per run)
-make download-probe-single RUN_NAME=classic    # Single run's probes
+make download-board-probes                     # All runs (8 probes × games per run)
+make download-board-probe RUN_NAME=classic     # Single run's probes
 ```
 
 Assets are placed under `data/` following this layout:
@@ -159,6 +158,8 @@ data/
 │       └── nomidflip_board_L1.ckpt # through L8
 ...
 ```
+
+> **Note:** Pre-cached activations (used for board probe training) are **not** available for download — they exceed 1 TB per model and must be generated locally. See [Training Board Probes](#training-board-probes) for the full workflow. Pre-trained probe checkpoints *are* available via `make download-board-probes`.
 
 ### Stream data without downloading
 
@@ -232,7 +233,7 @@ Each run reads hyperparameters from `data/{run_name}/train_config.json`. Configs
 
 ```bash
 # Via Makefile
-make train RUN_NAME=classic
+make train-model RUN_NAME=classic
 
 # Directly
 python scripts/gpt_train.py --run_name classic
@@ -247,9 +248,19 @@ Training **automatically resumes** from the latest checkpoint in `data/{run_name
 
 Board probes are linear classifiers trained to predict the tile state (Mine / Opponent / Empty) at each board position from the model's residual-stream activations. One probe is trained per `(model, game, layer)` triple — 8 probes for single-game models, 16 for mixed-game models.
 
+> **Quickstart:** If you only need pre-trained probes for analysis, skip this section and run `make download-board-probes`. The steps below are for training probes from scratch.
+
+### Step 0: Generate probe-training data
+
+Probe training requires a separate 1M-game dataset per variant (not included in the HuggingFace dataset due to the size of cached activations — see below):
+
+```bash
+make generate-data GAME=classic N_GAMES=1 SPLIT=board_train
+```
+
 ### Step 1: Cache activations
 
-Probes train on cached activations. Run the caching script once per `(model, data)` pair:
+Probes train on cached activations. Caching appends residual-stream activations for all 8 layers into the Zarr store, which grows the store to hundreds of gigabytes per model. These cached stores are **not** hosted on HuggingFace (>1 TB total) and must be generated locally. Run the caching script once per `(model, data)` pair:
 
 ```bash
 # Via Makefile
@@ -267,7 +278,7 @@ This appends `resid_post` activations for all 8 layers into the Zarr store. For 
 
 ```bash
 # Via Makefile  [MODEL_NAME=classic PROBE_GAME=classic LAYER=1]
-make train-probe MODEL_NAME=classic PROBE_GAME=classic LAYER=5
+make train-board-probe MODEL_NAME=classic PROBE_GAME=classic LAYER=5
 
 # Directly
 python scripts/board_probe_train.py \
@@ -294,6 +305,8 @@ done
 ```
 
 Probes are saved to `data/{model_name}/board_probes/{game}_board_L{layer}.ckpt` (layers 1-indexed, 10 training epochs, lr=3e-4).
+
+> **Coming soon:** Game ID probes (linear classifiers that predict which game variant is being played), along with training scripts and plotting scripts for Game ID probe results, are currently in development and will be added in a future update.
 
 ---
 
@@ -331,6 +344,8 @@ make -C scripts/analysis figures
 | `figures-intervention-evaluation` | Global intervention errors + cosine vs. error scatter | `figures/intervention_evaluation/` |
 
 > **Note:** `figures-probe-weight-similarity` loads probe checkpoints directly from `data/` — no compute step is needed for these figures.
+>
+> **Coming soon:** Game ID probe analysis — compute and plotting scripts for Game ID probe accuracy — will be added in a future update.
 
 ### Run everything end to end
 
