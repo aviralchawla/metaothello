@@ -16,10 +16,8 @@ import numpy as np
 from metaothello.analysis_utils import BLOCK_SIZE, CACHE_DIR, load_json_cache
 from metaothello.plotting import (
     ICML_HALF_WIDTH,
-    apply_axis_labels,
     save_figure,
     setup_icml_style,
-    trim_axes,
 )
 
 logger = logging.getLogger(__name__)
@@ -60,7 +58,6 @@ def plot_iago_alignment(cache: dict) -> None:
     base_means = np.array(base_data["means"])
     base_stds = np.array(base_data["stds"])
 
-    # Paper specifies "Classic baseline" text near the line
     ax.plot(
         MOVE_POSITIONS,
         base_means,
@@ -76,18 +73,6 @@ def plot_iago_alignment(cache: dict) -> None:
         color="black",
         alpha=0.1,
         linewidth=0,
-    )
-
-    # Adding label next to the line (approximate placement)
-    # The plot in Figure 4 has the label on the line
-    ax.text(
-        40,
-        base_means[39] + 0.005,
-        "Classic baseline",
-        color="black",
-        ha="center",
-        va="bottom",
-        bbox={"facecolor": "white", "alpha": 0.8, "edgecolor": "none", "pad": 1},
     )
 
     layers_data = run_data.get("layers", {})
@@ -114,19 +99,20 @@ def plot_iago_alignment(cache: dict) -> None:
     ax.set_ylim(0.90, 1.00)
     ax.set_xlim(0, 50)
 
-    apply_axis_labels(ax, xlabel="Move Number", ylabel="Mean Iago Alpha Score")
-    trim_axes(ax)
+    ax.set_xlabel("Move Number")
+    ax.set_ylabel("Mean Iago Alpha Score")
 
-    # Recreate the legend structure from the paper
-    # "Intervention layer" title, then 2 columns of layers
     handles, labels = ax.get_legend_handles_labels()
-    # Filter out baseline from handles for the main legend
+    baseline_handles = [
+        h for h, lbl in zip(handles, labels, strict=False) if not lbl.startswith("Layer")
+    ]
+    baseline_labels = [lbl for lbl in labels if not lbl.startswith("Layer")]
     layer_handles = [h for h, lbl in zip(handles, labels, strict=False) if lbl.startswith("Layer")]
-    layer_labels = [lbl for h, lbl in zip(handles, labels, strict=False) if lbl.startswith("Layer")]
+    layer_labels = [lbl for lbl in labels if lbl.startswith("Layer")]
 
     leg = ax.legend(
-        layer_handles,
-        layer_labels,
+        baseline_handles + layer_handles,
+        baseline_labels + layer_labels,
         title="Intervention layer",
         loc="lower right",
         ncol=2,
