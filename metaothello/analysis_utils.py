@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import random
 import warnings
 from enum import StrEnum
 from pathlib import Path
@@ -467,3 +468,125 @@ def alpha_score(
         raise ValueError("KL(p || u) == 0: p equals the reference distribution u.")
 
     return 1.0 - numerator / denominator
+
+
+def generate_diverging_sequences(
+    divergence_point: int,
+    game_classes: list[type],
+    num_sequences: int,
+    tokenizer: Tokenizer | None = None,
+    *,
+    max_attempts: int = 50_000,
+) -> list[list[str]]:
+    """Generate sequences valid in all games that diverge at a given move.
+
+    Uses DFS with random move shuffling and backtracking to find sequences
+    of length ``divergence_point`` that are valid in both games, and where
+    the valid-move sets at the end satisfy ``|V1 - V2| > 0`` **and**
+    ``|V2 - V1| > 0`` (i.e. the symmetric difference is non-empty in both
+    directions).
+
+    Each DFS attempt builds a sequence one move at a time, choosing from
+    the intersection of valid moves in both games (shuffled randomly for
+    diversity).  If a dead end is reached the search backtracks.  When
+    the sequence reaches the target length, the divergence criterion is
+    checked.
+
+    Args:
+        divergence_point: Desired sequence length at which the two games'
+            valid-move sets must diverge.
+        game_classes: List of exactly two game classes.
+        num_sequences: Number of diverging sequences to collect.
+        tokenizer: Unused (kept for backward compatibility with callers).
+        max_attempts: Maximum number of full DFS restarts before giving up.
+            Each restart is an independent DFS search from the empty
+            sequence.
+
+    Returns:
+        List of move-name sequences (each of length ``divergence_point``).
+
+    Raises:
+        RuntimeError: If ``num_sequences`` cannot be reached within
+            ``max_attempts`` DFS restarts.
+    """
+    assert len(game_classes) == 2, "generate_diverging_sequences only supports 2 games"
+
+    def _dfs(game_classes: list[type], sequence: list[str], target_len: int) -> list[str] | None:
+        """DFS with backtracking to find one diverging sequence."""
+        g1 = game_classes[0]()
+        g2 = game_classes[1]()
+        for m in sequence:
+            g1.play_move(m)
+            g2.play_move(m)
+
+        v1 = set(g1.get_all_valid_moves())
+        v2 = set(g2.get_all_valid_moves())
+        # Remove Nones
+        v1 = {m for m in v1 if m is not None}
+        v2 = {m for m in v2 if m is not None}
+        v_intersection = v1.intersection(v2)
+
+        if len(v1) == 0 or len(v2) == 0 or len(v_intersection) == 0:
+            return None
+
+        if len(sequence) == target_len:
+            # Divergence criterion: symmetric difference non-empty in BOTH directions
+            if len(v1 - v2) == 0 or len(v2 - v1) == 0:
+                return None
+            return sequence
+
+        # Randomly shuffle the intersection for diversity
+        v_list = list(v_intersection)
+        random.shuffle(v_list)
+
+        for m in v_list:
+            result = _dfs(game_classes, sequence + [m], target_len)
+            if result is not None:
+                return result
+
+        return None
+
+    found: list[list[str]] = []
+    attempts = 0
+
+    with tqdm(total=num_sequences, desc=f"Diverging seqs (t={divergence_point})", leave=False) as pbar:
+        while len(found) < num_sequences:
+            if attempts >= max_attempts:
+                break
+            attempts += 1
+            result = _dfs(game_classes, [], divergence_point)
+            if result is not None:
+                found.append(result)
+                pbar.update(1)
+
+    if len(found) < num_sequences:
+        raise RuntimeError(
+            f"Only found {len(found)}/{num_sequences} diverging sequences "
+            f"at t={divergence_point} after {max_attempts} DFS attempts."
+        )
+
+    return found
+
+
+def get_board_states(seq: list[str], game_class: type) -> np.ndarray:
+    """Replay a move sequence and return the resulting board as mine/yours/empty.
+
+    Converts the raw board (BLACK=-1, WHITE=1, EMPTY=0) to the perspective
+    of the player to move: mine=1, yours=-1, empty=0.
+
+    Args:
+        seq: Move token names to replay.
+        game_class: Game class to use for replay.
+
+    Returns:
+        Board array of shape ``(8, 8)`` with values in ``{-1, 0, 1}``.
+    """
+    from metaothello.constants import WHITE
+
+    game = game_class()
+    for move in seq:
+        game.play_move(move)
+    board = game.board.copy()
+    if game.next_color == WHITE:
+        board *= -1
+    return board

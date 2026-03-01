@@ -6,7 +6,8 @@
 	compute-model-accuracy compute-board-probe-accuracy \
 	compute-activation-cosine-sim compute-iago-alignment compute-intervention-eval \
 	figures-model-accuracy figures-board-probe-accuracy figures-probe-weight-similarity \
-	figures-activation-similarity figures-iago figures-intervention-evaluation
+	figures-activation-similarity figures-iago figures-intervention-evaluation \
+	compute-divergence-dynamics figures-divergence-dynamics
 
 help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -20,7 +21,8 @@ all: compute figures ## Run all compute and figure scripts in sequence
 
 compute: ## Run all compute scripts (populate caches)
 compute: compute-model-accuracy compute-board-probe-accuracy \
-	compute-activation-cosine-sim compute-iago-alignment compute-intervention-eval
+	compute-activation-cosine-sim compute-iago-alignment compute-intervention-eval \
+	compute-divergence-dynamics
 
 compute-model-accuracy: ## Compute model accuracy (top1, correct_prob, alpha)
 	python model_accuracy/compute_model_accuracy.py --metric top1
@@ -46,7 +48,8 @@ compute-intervention-eval: ## Compute linear probe intervention evaluation
 figures: ## Run all plot scripts (produce all figures)
 figures: figures-model-accuracy figures-board-probe-accuracy \
 	figures-probe-weight-similarity figures-activation-similarity \
-	figures-iago figures-intervention-evaluation
+	figures-iago figures-intervention-evaluation \
+	figures-divergence-dynamics
 
 figures-model-accuracy: ## Plot model accuracy figures (over-moves + aggregated, all metrics)
 	python model_accuracy/plot_model_accuracy_over_moves.py --metric top1
@@ -75,3 +78,11 @@ figures-iago: ## Plot Iago Procrustes alignment figure
 figures-intervention-evaluation: ## Plot intervention evaluation figures
 	python intervention_evaluation/plot_intervention_cosine.py
 	python intervention_evaluation/plot_intervention_global.py
+
+compute-divergence-dynamics: ## Compute divergence dynamics for NoMidFlip (Fig 5)
+	python divergence_dynamics/compute_probe_accuracy_differing.py
+	python divergence_dynamics/compute_game_probe_fidelity.py
+	python divergence_dynamics/compute_steering_nomidflip.py
+
+figures-divergence-dynamics: ## Plot Figure 5 (NoMidFlip divergence dynamics)
+	python divergence_dynamics/plot_figure5.py
