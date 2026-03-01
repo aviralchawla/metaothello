@@ -13,6 +13,9 @@ data/**/*.zarr
 data/*/ckpts/
 .DS_Store
 *.ckpt
+!data/*/board_probes/*.ckpt
+!data/*/game_probes/*.ckpt
+!data/*/analytic_probe.ckpt
 *.pickle
 *.out
 writing/**
