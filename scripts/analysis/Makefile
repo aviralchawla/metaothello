@@ -7,7 +7,8 @@
 	compute-activation-cosine-sim compute-iago-alignment compute-intervention-eval \
 	figures-model-accuracy figures-board-probe-accuracy figures-probe-weight-similarity \
 	figures-activation-similarity figures-iago figures-intervention-evaluation \
-	compute-divergence-dynamics figures-divergence-dynamics
+	compute-divergence-dynamics figures-divergence-dynamics \
+	compute-steering-delflank figures-steering-delflank
 
 help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -22,7 +23,7 @@ all: compute figures ## Run all compute and figure scripts in sequence
 compute: ## Run all compute scripts (populate caches)
 compute: compute-model-accuracy compute-board-probe-accuracy \
 	compute-activation-cosine-sim compute-iago-alignment compute-intervention-eval \
-	compute-divergence-dynamics
+	compute-divergence-dynamics compute-steering-delflank
 
 compute-model-accuracy: ## Compute model accuracy (top1, correct_prob, alpha)
 	python model_accuracy/compute_model_accuracy.py --metric top1
@@ -49,7 +50,7 @@ figures: ## Run all plot scripts (produce all figures)
 figures: figures-model-accuracy figures-board-probe-accuracy \
 	figures-probe-weight-similarity figures-activation-similarity \
 	figures-iago figures-intervention-evaluation \
-	figures-divergence-dynamics
+	figures-divergence-dynamics figures-steering-delflank
 
 figures-model-accuracy: ## Plot model accuracy figures (over-moves + aggregated, all metrics)
 	python model_accuracy/plot_model_accuracy_over_moves.py --metric top1
@@ -86,3 +87,10 @@ compute-divergence-dynamics: ## Compute divergence dynamics for NoMidFlip (Fig 5
 
 figures-divergence-dynamics: ## Plot Figure 5 (NoMidFlip divergence dynamics)
 	python divergence_dynamics/plot_figure5.py
+
+compute-steering-delflank: ## Compute steering effects for DelFlank (Fig 6)
+	python steering_delflank/compute_steering_delflank.py
+	python steering_delflank/compute_probe_effect_delflank.py
+
+figures-steering-delflank: ## Plot Figure 6 (DelFlank steering)
+	python steering_delflank/plot_figure6.py
