@@ -19,3 +19,4 @@ writing/**
 pyrightconfig.json
 data/analysis_cache
 figures/
+.worktrees/
