@@ -272,7 +272,7 @@ if __name__ == "__main__":
         help="Bicompatible sequences per length (default: 1000).",
     )
     parser.add_argument("--min_length", type=int, default=6)
-    parser.add_argument("--max_length", type=int, default=40)
+    parser.add_argument("--max_length", type=int, default=55)
     parser.add_argument("--force", action="store_true", help="Recompute even if cached.")
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
