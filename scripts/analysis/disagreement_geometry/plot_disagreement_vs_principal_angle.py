@@ -15,12 +15,10 @@ import logging
 from pathlib import Path
 from typing import Final
 
-import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
 from metaothello.analysis_utils import CACHE_DIR, load_json_cache
-from metaothello.plotting import save_figure
 
 logger = logging.getLogger(__name__)
 
@@ -28,26 +26,6 @@ CACHE_FILE: Final[Path] = CACHE_DIR / "disagreement_geometry.json"
 FIGURE_DIR: Final[Path] = Path(__file__).resolve().parents[3] / "figures" / "disagreement_geometry"
 N_LAYERS: Final[int] = 8
 RUN_NAME: Final[str] = "classic_nomidflip"
-
-
-def _setup_style() -> None:
-    """Configure matplotlib to match the published figure style."""
-    matplotlib.rcParams.update(
-        {
-            "font.family": "sans-serif",
-            "font.size": 10,
-            "axes.labelsize": 12,
-            "axes.titlesize": 12,
-            "xtick.labelsize": 11,
-            "ytick.labelsize": 11,
-            "legend.fontsize": 8,
-            "lines.linewidth": 1.5,
-            "figure.dpi": 300,
-            "axes.linewidth": 1.0,
-            "pdf.fonttype": 42,
-            "ps.fonttype": 42,
-        }
-    )
 
 
 def plot_disagreement_vs_principal_angle(cache: dict) -> None:
@@ -61,7 +39,6 @@ def plot_disagreement_vs_principal_angle(cache: dict) -> None:
     first_angles = np.array(data["principal_angles_first"])  # (8, 64)
     r_squared = data["r_squared_principal_angle"]  # list of 8 floats
 
-    _setup_style()
     fig, ax = plt.subplots(figsize=(5, 4))
 
     cmap = plt.cm.plasma
@@ -79,8 +56,8 @@ def plot_disagreement_vs_principal_angle(cache: dict) -> None:
             linewidths=0.3,
         )
 
-    ax.set_xlabel("P(Disagreement)")
-    ax.set_ylabel("First Principal Angle (\u00b0)")
+    ax.set_xlabel("P(Disagreement)", fontsize=12)
+    ax.set_ylabel("First Principal Angle (\u00b0)", fontsize=12)
     ax.tick_params(axis="both", labelsize=11)
 
     ax.legend(
@@ -99,10 +76,13 @@ def plot_disagreement_vs_principal_angle(cache: dict) -> None:
     ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
-    save_figure(
-        fig,
-        FIGURE_DIR / "disagreement_vs_principal_angle_combined_Classic_NoMidFlip",
-    )
+
+    out = FIGURE_DIR / "disagreement_vs_principal_angle_combined_Classic_NoMidFlip"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out.with_suffix(".png"), dpi=150, bbox_inches="tight")
+    fig.savefig(out.with_suffix(".pdf"), bbox_inches="tight")
+    logger.info("Saved figure: %s (.pdf + .png)", out)
+    plt.close(fig)
 
 
 if __name__ == "__main__":
