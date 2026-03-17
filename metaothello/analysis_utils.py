@@ -540,7 +540,7 @@ def generate_diverging_sequences(
         random.shuffle(v_list)
 
         for m in v_list:
-            result = _dfs(game_classes, sequence + [m], target_len)
+            result = _dfs(game_classes, [*sequence, m], target_len)
             if result is not None:
                 return result
 
@@ -549,7 +549,8 @@ def generate_diverging_sequences(
     found: list[list[str]] = []
     attempts = 0
 
-    with tqdm(total=num_sequences, desc=f"Diverging seqs (t={divergence_point})", leave=False) as pbar:
+    desc = f"Diverging seqs (t={divergence_point})"
+    with tqdm(total=num_sequences, desc=desc, leave=False) as pbar:
         while len(found) < num_sequences:
             if attempts >= max_attempts:
                 break
@@ -563,6 +564,83 @@ def generate_diverging_sequences(
         raise RuntimeError(
             f"Only found {len(found)}/{num_sequences} diverging sequences "
             f"at t={divergence_point} after {max_attempts} DFS attempts."
+        )
+
+    return found
+
+
+def generate_bicompatible_sequences(
+    seq_length: int,
+    game_classes: list[type],
+    num_sequences: int,
+    *,
+    max_attempts: int = 50_000,
+) -> list[list[str]]:
+    """Generate sequences valid in all games (no divergence requirement).
+
+    Uses the same DFS + backtracking approach as
+    :func:`generate_diverging_sequences`, but accepts any sequence of the
+    target length whose moves lie in the intersection of valid moves at
+    every step.  No constraint is placed on the valid-move sets at the
+    final position.
+
+    Args:
+        seq_length: Desired length of each sequence.
+        game_classes: List of exactly two game classes.
+        num_sequences: Number of bicompatible sequences to collect.
+        max_attempts: Maximum DFS restarts before giving up.
+
+    Returns:
+        List of move-name sequences (each of length ``seq_length``).
+
+    Raises:
+        RuntimeError: If ``num_sequences`` cannot be reached within
+            ``max_attempts`` DFS restarts.
+    """
+    assert len(game_classes) == 2, "generate_bicompatible_sequences only supports 2 games"
+
+    def _dfs(sequence: list[str], target_len: int) -> list[str] | None:
+        g1 = game_classes[0]()
+        g2 = game_classes[1]()
+        for m in sequence:
+            g1.play_move(m)
+            g2.play_move(m)
+
+        if len(sequence) == target_len:
+            return sequence
+
+        v1 = {m for m in g1.get_all_valid_moves() if m is not None}
+        v2 = {m for m in g2.get_all_valid_moves() if m is not None}
+        v_intersection = list(v1 & v2)
+
+        if not v_intersection:
+            return None
+
+        random.shuffle(v_intersection)
+        for m in v_intersection:
+            result = _dfs([*sequence, m], target_len)
+            if result is not None:
+                return result
+        return None
+
+    found: list[list[str]] = []
+    attempts = 0
+
+    desc = f"Bicompatible seqs (len={seq_length})"
+    with tqdm(total=num_sequences, desc=desc, leave=False) as pbar:
+        while len(found) < num_sequences:
+            if attempts >= max_attempts:
+                break
+            attempts += 1
+            result = _dfs([], seq_length)
+            if result is not None:
+                found.append(result)
+                pbar.update(1)
+
+    if len(found) < num_sequences:
+        raise RuntimeError(
+            f"Only found {len(found)}/{num_sequences} bicompatible sequences "
+            f"at len={seq_length} after {max_attempts} DFS attempts."
         )
 
     return found
