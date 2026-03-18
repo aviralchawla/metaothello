@@ -63,8 +63,8 @@ def load_game_probes(
             "  python scripts/download_probes.py game"
             " --run_name classic_nomidflip\n"
             "Or train from scratch:\n"
-            "  python scripts/training/train_game_probe.py"
-            " --run_name classic_nomidflip"
+            "  make train-game-probes-all"
+            " MODEL_NAME=classic_nomidflip"
         )
         raise FileNotFoundError(msg)
 

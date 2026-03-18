@@ -1,4 +1,4 @@
-.PHONY: help install install-dev lint format format-check typecheck check fix test test-fast test-cov clean download-all download-models download-model download-data download-data-game download-board-probes download-board-probe download-game-probes download-game-probe download-analytic-probes download-analytic-probe generate-data generate-data-all-train train-model train-board-probe cache-activations compute-model-accuracy
+.PHONY: help install install-dev lint format format-check typecheck check fix test test-fast test-cov clean download-all download-models download-model download-data download-data-game download-board-probes download-board-probe download-game-probes download-game-probe download-analytic-probes download-analytic-probe generate-data generate-data-all-train train-model train-board-probe train-game-probe train-game-probes-all cache-activations compute-model-accuracy
 
 help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -107,6 +107,14 @@ train-model: ## Train a GPT model  [RUN_NAME=classic]
 
 train-board-probe: ## Train a board probe  [MODEL_NAME=classic PROBE_GAME=classic LAYER=1]
 	python scripts/board_probe_train.py --model_name $(MODEL_NAME) --game $(PROBE_GAME) --layer $(LAYER)
+
+train-game-probe: ## Train a game identity probe  [MODEL_NAME=classic_nomidflip LAYER=1]
+	python scripts/game_probe_train.py --model_name $(MODEL_NAME) --layer $(LAYER)
+
+train-game-probes-all: ## Train all 8 game identity probes  [MODEL_NAME=classic_nomidflip]
+	for layer in 1 2 3 4 5 6 7 8; do \
+		python scripts/game_probe_train.py --model_name $(MODEL_NAME) --layer $$layer; \
+	done
 
 cache-activations: ## Cache model activations into Zarr  [RUN_NAME=classic DATA_PATH=...]
 	python scripts/cache_activations.py --run_name $(RUN_NAME) --data_path $(DATA_PATH)
