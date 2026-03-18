@@ -1,4 +1,4 @@
-.PHONY: help install install-dev lint format format-check typecheck check fix test test-fast test-cov clean download-all download-models download-model download-data download-data-game download-board-probes download-board-probe generate-data generate-data-all-train train-model train-board-probe cache-activations compute-model-accuracy
+.PHONY: help install install-dev lint format format-check typecheck check fix test test-fast test-cov clean download-all download-models download-model download-data download-data-game download-board-probes download-board-probe download-game-probes download-game-probe download-analytic-probes download-analytic-probe generate-data generate-data-all-train train-model train-board-probe train-game-probe train-game-probes-all cache-activations compute-model-accuracy
 
 help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -52,9 +52,9 @@ GAME    ?= classic
 N_GAMES ?= 1
 SPLIT   ?= train
 
-download-all: ## Download all pretrained assets (models + data + board probes)
+download-all: ## Download all pretrained assets (models + data + all probes)
 	python scripts/download_models.py all
-	python scripts/download_probes.py
+	python scripts/download_probes.py all
 
 download-models: ## Download all model checkpoints from HuggingFace
 	python scripts/download_models.py models
@@ -69,10 +69,22 @@ download-data-game: ## Download training data for one game  [GAME=classic]
 	python scripts/download_models.py data --game $(GAME)
 
 download-board-probes: ## Download all board probe checkpoints from HuggingFace
-	python scripts/download_probes.py
+	python scripts/download_probes.py board
 
 download-board-probe: ## Download board probes for one run  [RUN_NAME=classic]
-	python scripts/download_probes.py --run_name $(RUN_NAME)
+	python scripts/download_probes.py board --run_name $(RUN_NAME)
+
+download-game-probes: ## Download all game identity probe checkpoints from HuggingFace
+	python scripts/download_probes.py game
+
+download-game-probe: ## Download game probes for one run  [RUN_NAME=classic_nomidflip]
+	python scripts/download_probes.py game --run_name $(RUN_NAME)
+
+download-analytic-probes: ## Download all analytic baseline probe checkpoints from HuggingFace
+	python scripts/download_probes.py analytic
+
+download-analytic-probe: ## Download analytic probes for one run  [RUN_NAME=classic_nomidflip]
+	python scripts/download_probes.py analytic --run_name $(RUN_NAME)
 
 # ---------- Generate Data ----------
 generate-data: ## Generate game data locally  [GAME=classic N_GAMES=1 SPLIT=train]
@@ -95,6 +107,14 @@ train-model: ## Train a GPT model  [RUN_NAME=classic]
 
 train-board-probe: ## Train a board probe  [MODEL_NAME=classic PROBE_GAME=classic LAYER=1]
 	python scripts/board_probe_train.py --model_name $(MODEL_NAME) --game $(PROBE_GAME) --layer $(LAYER)
+
+train-game-probe: ## Train a game identity probe  [MODEL_NAME=classic_nomidflip LAYER=1]
+	python scripts/game_probe_train.py --model_name $(MODEL_NAME) --layer $(LAYER)
+
+train-game-probes-all: ## Train all 8 game identity probes  [MODEL_NAME=classic_nomidflip]
+	for layer in 1 2 3 4 5 6 7 8; do \
+		python scripts/game_probe_train.py --model_name $(MODEL_NAME) --layer $$layer; \
+	done
 
 cache-activations: ## Cache model activations into Zarr  [RUN_NAME=classic DATA_PATH=...]
 	python scripts/cache_activations.py --run_name $(RUN_NAME) --data_path $(DATA_PATH)

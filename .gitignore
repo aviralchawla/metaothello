@@ -18,3 +18,5 @@ data/*/ckpts/
 writing/**
 pyrightconfig.json
 data/analysis_cache
+figures/
+.worktrees/

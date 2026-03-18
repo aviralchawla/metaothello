@@ -124,7 +124,7 @@ All pretrained models, board probes, and training data are hosted on HuggingFace
 ### Download everything at once
 
 ```bash
-make download-all        # All pretrained assets (models + data + board probes)
+make download-all        # All pretrained assets (models + data + all probes)
 ```
 
 ### Download selectively
@@ -141,6 +141,14 @@ make download-data-game GAME=classic           # Single game
 # Board probe checkpoints
 make download-board-probes                     # All runs (8 probes × games per run)
 make download-board-probe RUN_NAME=classic     # Single run's probes
+
+# Game identity probe checkpoints
+make download-game-probes                      # All runs
+make download-game-probe RUN_NAME=classic_nomidflip  # Single run
+
+# Analytic baseline probe checkpoints
+make download-analytic-probes                  # All runs
+make download-analytic-probe RUN_NAME=classic_nomidflip  # Single run
 ```
 
 Assets are placed under `data/` following this layout:
@@ -153,9 +161,12 @@ data/
 │   ├── train_config.json
 │   ├── ckpts/
 │   │   └── epoch_250.ckpt
-│   └── board_probes/
-│       ├── classic_board_L1.ckpt   # through L8
-│       └── nomidflip_board_L1.ckpt # through L8
+│   ├── board_probes/
+│   │   ├── classic_board_L1.ckpt   # through L8
+│   │   └── nomidflip_board_L1.ckpt # through L8
+│   ├── game_probes/
+│   │   └── game_L1.ckpt            # through L8
+│   └── analytic_probe.ckpt
 ...
 ```
 
@@ -306,7 +317,7 @@ done
 
 Probes are saved to `data/{model_name}/board_probes/{game}_board_L{layer}.ckpt` (layers 1-indexed, 10 training epochs, lr=3e-4).
 
-> **Coming soon:** Game ID probes (linear classifiers that predict which game variant is being played), along with training scripts and plotting scripts for Game ID probe results, are currently in development and will be added in a future update.
+> **Game ID probes** (linear classifiers that predict which game variant is being played) and **analytic baseline probes** are available for download via `make download-game-probes` and `make download-analytic-probes`. These are used by the divergence dynamics analysis (Figure 5).
 
 ---
 
@@ -327,6 +338,7 @@ make -C scripts/analysis compute
 | `compute-activation-cosine-sim` | `data/analysis_cache/activation_cosine_sim.json` |
 | `compute-iago-alignment` | `data/analysis_cache/iago_alignment.json` |
 | `compute-intervention-eval` | `data/analysis_cache/intervention_eval.json` |
+| `compute-divergence-dynamics` | `data/analysis_cache/{probe_accuracy_differing,game_probe_fidelity,steering_nomidflip}.json` |
 
 ### Step 2: Generate all figures (CPU only)
 
@@ -342,10 +354,9 @@ make -C scripts/analysis figures
 | `figures-activation-similarity` | Activation cosine similarity over moves | `figures/activation_similarity/` |
 | `figures-iago` | Classic-to-Iago Procrustes alignment | `figures/iago/` |
 | `figures-intervention-evaluation` | Global intervention errors + cosine vs. error scatter | `figures/intervention_evaluation/` |
+| `figures-divergence-dynamics` | NoMidFlip divergence dynamics (Figure 5, three panels) | `figures/divergence_dynamics/` |
 
 > **Note:** `figures-probe-weight-similarity` loads probe checkpoints directly from `data/` — no compute step is needed for these figures.
->
-> **Coming soon:** Game ID probe analysis — compute and plotting scripts for Game ID probe accuracy — will be added in a future update.
 
 ### Run everything end to end
 
